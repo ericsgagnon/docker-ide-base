@@ -1,5 +1,6 @@
 
 # docker build -t ericsgagnon/ide-base:dev -f Dockerfile .
+# docker run -dit --name ide ericsgagnon/ide-base:dev
 # docker build -t ericsgagnon/ide-base:$(date +%Y%m%d%H%M%S) -f Dockerfile .
 # docker build -t ericsgagnon/ide-base:ubuntu20.04-cuda11.1 -f Dockerfile .
 # overview:
@@ -17,6 +18,8 @@ ENV LANG=en_US.UTF-8
 ENV PASSWORD password
 ENV SHELL=/bin/bash
 ENV WORKSPACE=/workspace
+ENV FREETDS_VERSION=1.2.18
+ENV PROTOBUF_VERSION=v3.14.0
 
 # this may not be necessary but may give insight on source files
 COPY . ${WORKSPACE}/
@@ -25,7 +28,7 @@ RUN chsh -s /bin/bash
 
 ##################################################################################################################
 
-# install os libraries, utilities, etc.
+# install os libraries, utilities, etc. - some of these are already installed in buildpack-deps
 RUN apt-get update \
     && apt-get upgrade -y \
     && apt-get install -y \
@@ -86,10 +89,16 @@ RUN apt-get update \
     slurm \
     tcpdump \
     moreutils \
+    dmidecode \
+    strace \
+    nfstrace \
+    dnstracer \
+    jq \
+    protobuf-compiler \
     && rm -rf /var/lib/apt/lists/*
 
 # nss wrapper lets us mount passwd and group files if necessary
-ENV LD_PRELOAD=libnss_wrapper.so \
+ENV LD_PRELOAD=/usr/lib/libnss_wrapper.so:$LD_PRELOAD \
     LD_LIBRARY_PATH=/usr/local/lib:/usr/lib:$LD_LIBRARY_PATH \
     NSS_WRAPPER_PASSWD=/etc/passwd \
     NSS_WRAPPER_GROUP=/etc/group
@@ -101,8 +110,9 @@ RUN mkdir -p \
     /etc/skel/.local/share \
     /etc/skel/.config      \
     /etc/skel/.cache       \
-    && echo 'export PATH=$PATH'           >> /etc/skel/.bashrc \
-    && cat $WORKSPACE/bashrc.env.sh | envsubst >> /etc/skel/.bashrc
+    && echo 'export PATH=$HOME/.local/bin:$PATH'           >> /etc/skel/.bashrc
+#    && echo 'export LD_LIBRARY_PATH=/usr/lib:/usr/local/lib:$LD_LIBRARY_PATH' >> /etc/skel/.bashrc 
+#    && cat $WORKSPACE/bashrc.env.sh | envsubst >> /etc/skel/.bashrc
 
 COPY skel-rsync.sh /etc/profile.d/
 # Databases ################################################################
@@ -148,10 +158,10 @@ RUN mkdir /opt/oracle && cd /opt/oracle \
 
 # freetds #####################################################################################
 RUN mkdir /opt/freetds && cd /opt/freetds \
-    && wget -O freetds.tar.gz ftp://ftp.freetds.org/pub/freetds/stable/freetds-1.2.12.tar.gz \  
+    && wget -O freetds.tar.gz ftp://ftp.freetds.org/pub/freetds/stable/freetds-$FREETDS_VERSION.tar.gz \  
     && tar xvf freetds.tar.gz \
     && rm freetds.tar.gz \
-    && ln -s freetds-1.2.12 freetds \
+    && ln -s freetds-$FREETDS_VERSION freetds \
     && cd freetds \
     && ./configure \
     && make \
@@ -159,5 +169,32 @@ RUN mkdir /opt/freetds && cd /opt/freetds \
     && cat /opt/odbcinst.ini >> /etc/odbcinst.ini \
     && rm /opt/odbcinst.ini
 
+# protocol buffers ############################################################################
+# this is too much of a pain for now - defaulting to os package (above)
 
+# RUN mkdir /usr/local/protocolbuffers \
+#     && PB_REL="https://github.com/protocolbuffers/protobuf/releases" ; \
+#     curl -L -o /tmp/protoc.zip \
+#     $PB_REL/download/v$PROTOBUF_VERSION/protoc-$PROTOBUF_VERSION-linux-x86_64.zip \
+#     && unzip /tmp/protoc.zip /usr/local/
+# RUN curl -LO $( curl -H "Accept: application/vnd.github.v3+json" \
+#     "https://api.github.com/repos/protocolbuffers/protobuf/releases/latest" | \
+#     jq ".assets | .[] | .browser_download_url " | grep linux | grep x86 | grep 64 )
+#curl -s https://api.github.com/repos/protocolbuffers/protobuf/releases/latest | jq -r ".assets[] | select(.name | contains(\"search param for specific download url\")) | .browser_download_url" | wget -i -    
+# ln -s  /usr/local/protocolbuffers/bin/protoc /usr/local/bin/protoc
+# https://api.github.com/repos/protocolbuffers/protobuf/zipball/v3.14.0"
+
+# github cli ##################################################################################
+# https://github.com/cli/cli/blob/trunk/docs/install_linux.md 
+
+RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-key C99B11DEB97541F0 \
+    && apt-add-repository https://cli.github.com/packages \
+    && apt update \
+    && apt install -y gh
+
+# create user #################################################################################
+# using a 'standard' user for now - may make dynamic in the future
+
+#RUN useradd liverware -u 1138 -s /bin/bash -m \
+#    && echo "liveware ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/nopasswd
 
