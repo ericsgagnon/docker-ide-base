@@ -1,4 +1,4 @@
-
+# docker build --pull -t ericsgagnon/ide-base:dev -f Dockerfile .
 # docker build -t ericsgagnon/ide-base:dev -f Dockerfile .
 # docker run -dit --name ide ericsgagnon/ide-base:dev
 # docker build -t ericsgagnon/ide-base:$(date +%Y%m%d%H%M%S) -f Dockerfile .
@@ -9,17 +9,46 @@
 # - adds additional odbc and utility packages (netstat, tcpdump, etc.)
 # - adds multiple languages: go, python, Go
 
-FROM ericsgagnon/buildpack-deps-cuda:ubuntu20.04-cuda11.1
+
+# ARG GOLANG_VERSION=1.15
+# ARG RUST_VERSION=1.47
+# #ARG R_VERSION=4.0.3
+# ARG PYTHON_VERSION=3.9
+# #ARG OIC_VERSION=19.6
+# #ARG CODE_SERVER_VERSION=3.7.1
+
+# FROM golang:${GOLANG_VERSION}       as golang
+# FROM rocker/geospatial:${R_VERSION} as rlang
+# FROM rust:${RUST_VERSION}           as rustlang
+# FROM python:${PYTHON_VERSION}       as python
+
+FROM golang:latest         as golang
+FROM rust:latest           as rust
+FROM python:latest         as python
+FROM openjdk:latest        as java
+FROM rocker/ml-verse:4.0.3 as rlang
+
+FROM ericsgagnon/buildpack-deps-cuda:ubuntu20.04-cuda11.0 as base
+
+# ARG GOLANG_VERSION
+# ARG RUST_VERSION
+# ARG R_VERSION
+# ARG PYTHON_VERSION
+# ARG OIC_VERSION
+# ARG CODE_SERVER_VERSION
+
 
 # environment variables
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=UTC
 ENV LANG=en_US.UTF-8
+#ENV LC_ALL=en_US.UTF-8
 ENV PASSWORD password
 ENV SHELL=/bin/bash
 ENV WORKSPACE=/workspace
 ENV FREETDS_VERSION=1.2.18
-ENV PROTOBUF_VERSION=v3.14.0
+#ENV PROTOBUF_VERSION=v3.14.0
+ENV CUDA_HOME               /usr/local/cuda
 
 # this may not be necessary but may give insight on source files
 COPY . ${WORKSPACE}/
@@ -75,6 +104,16 @@ RUN apt-get update \
     xclip \
     fuse3 \
     libfuse3-dev \
+    libopenblas-base \
+    libopenblas-dev \
+    libopenblas-openmp-dev \
+    libopenblas-serial-dev \
+    libopenblas0 \
+    libopenblas64-0 \
+    libopenblas64-dev \
+    libopenblas64-openmp-dev \
+    libopenblas64-pthread-dev \
+    libopenblas64-serial-dev \
     gprename \
     pax \
     rsync \
@@ -96,6 +135,8 @@ RUN apt-get update \
     jq \
     protobuf-compiler \
     && rm -rf /var/lib/apt/lists/*
+
+RUN locale-gen $LANG && dpkg-reconfigure locales
 
 # nss wrapper lets us mount passwd and group files if necessary
 ENV LD_PRELOAD=/usr/lib/libnss_wrapper.so:$LD_PRELOAD \
@@ -169,6 +210,163 @@ RUN mkdir /opt/freetds && cd /opt/freetds \
     && cat /opt/odbcinst.ini >> /etc/odbcinst.ini \
     && rm /opt/odbcinst.ini
 
+# python ##################################################
+
+# ensure local python is preferred over distribution python
+ENV PATH /usr/local/bin:$PATH
+ENV PYTHON_VERSION=${PYTHON_VERSION}
+
+RUN apt update -y && apt upgrade -y && \
+    apt install -y --no-install-recommends \
+    aptitude \
+    man
+
+COPY --from=python /usr/local/lib/  /usr/local/lib/
+COPY --from=python /usr/local/bin/  /usr/local/bin/
+
+RUN ldconfig
+
+# go ######################################################
+ARG GOLANG_VERSION=${GOLANG_VERSION}
+
+ENV GOLANG_VERSION=${GOLANG_VERSION}
+ENV GOPATH /go
+ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
+
+COPY --from=golang  /usr/local/go /usr/local/go
+COPY --from=golang  /go           /go
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+		g++ \
+		gcc \
+		libc6-dev \
+		make \
+		pkg-config && \
+    chmod -R 777 "$GOPATH" && \
+    chsh -s /bin/bash
+
+ENV SHELL=/bin/bash
+
+# rust ####################################################
+
+ARG RUST_VERSION
+ENV RUST_VERSION=${RUST_VERSION}
+
+ENV RUSTUP_HOME=/usr/local/rustup
+ENV CARGO_HOME=/usr/local/cargo
+ENV PATH=/usr/local/cargo/bin:$PATH
+
+COPY --from=rust  /usr/local/rustup /usr/local/rustup
+COPY --from=rust  /usr/local/cargo /usr/local/cargo
+
+# java ####################################################
+
+ENV PATH=/usr/java/openjdk-15/bin:$PATH
+ENV JAVA_HOME=/usr/java/openjdk-15
+
+COPY --from=java      /usr/java  /usr/java
+
+# javascript/node ################################
+RUN curl -sL https://deb.nodesource.com/setup_14.x | bash - \
+    && apt-get update \
+    && apt-get install -y nodejs \
+    && curl -sL https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - \
+    && echo "deb https://dl.yarnpkg.com/debian/ stable main" | tee /etc/apt/sources.list.d/yarn.list \
+    && apt-get update \
+    && apt-get install -y yarn
+
+# R ###########################################################
+
+FROM base as dev
+
+COPY  --from=rlang /usr/local/lib/R                /usr/local/lib/R
+COPY  --from=rlang /usr/local/bin/R                /usr/local/bin/
+COPY  --from=rlang /usr/local/bin/install2.r       /usr/local/bin/
+COPY  --from=rlang /usr/local/bin/installGithub.r  /usr/local/bin/
+COPY  --from=rlang /usr/local/bin/r                /usr/local/bin/
+COPY  --from=rlang /usr/local/bin/Rscript          /usr/local/bin/
+COPY  --from=rlang /etc/R                          /etc/R
+#COPY  --from=rlang /usr/local/bin/ /usr/local/bin/
+
+ENV CRAN="https://packagemanager.rstudio.com/all/__linux__/focal/latest"
+ENV R_ENVIRON_USER=~/.config/R/.Renviron
+ENV R_PROFILE_USER=~/.config/R/.Rprofile
+ENV R_VERSION=4.0
+
+# RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys E298A3A825C0D65DFD57CBB651716619E084DAB9 \
+#     && add-apt-repository 'deb https://cloud.r-project.org/bin/linux/ubuntu focal-cran40/' \
+#     && apt-get update \
+#     && R CMD javareconf
+
+RUN apt-get update && apt-get install -y \
+    tcl \
+    tk \
+    tk-dev \
+    tk-table \
+    jags \
+    bwidget \
+    mongodb \
+    pandoc \
+    bowtie2 \
+    imagej \
+    libpng-dev \
+    imagemagick \
+    libatk1.0-dev \
+    libcairo2-dev \
+    libcurl4-openssl-dev \
+    libfftw3-dev \
+    libglib2.0-dev \
+    libglpk-dev \
+    libgmp3-dev \
+    libgtk2.0-dev \
+    libjpeg-dev \
+    libleptonica-dev \
+    libmagick++-dev \
+    libmpfr-dev \
+    libopenmpi-dev \
+    libpango1.0-dev \
+    libpng-dev \
+    libpoppler-cpp-dev \
+    libsecret-1-dev \
+    libsodium-dev \
+    libssl-dev \
+    libtesseract-dev \
+    libudunits2-dev \
+    libv8-dev \
+    libwebp-dev \
+    libxml2-dev \
+    pari-gp \
+    saga \
+    texlive \
+    zlib1g-dev
+
+    # && apt-get install -y \
+    # r-base \
+
+
+
+# RUN mkdir -p /etc/skel/.local/share/R/$R_VERSION/lib  \
+#     && echo "R_LIBS_USER=${R_LIBS_USER-'~/.local/share/R/"$R_VERSION"/lib'}"        >> /usr/local/lib/R/etc/Renviron \
+#     && echo "R_VERSION=$R_VERSION"                                          >> /usr/local/lib/R/etc/Renviron \
+#     && echo "R_VERSION=$R_VERSION"                                                  >> /usr/local/lib/R/etc/Renviron \
+#     && echo "R_ENVIRON_USER=$R_ENVIRON_USER"                                        >> /usr/local/lib/R/etc/Renviron \
+#     && echo "R_PROFILE_USER=$R_PROFILE_USER"                                        >> /usr/local/lib/R/etc/Renviron \
+#     && echo "CRAN=$CRAN"                                                            >> /usr/local/lib/R/etc/Renviron 
+
+# commenting during dev to improve build time
+# RUN xargs -I {} -a /tmp/packages -0 install2.r -s --deps TRUE -n 8 {} # not this one - behavior changed when moving to ubuntu
+#RUN head -n 2 $WORKSPACE/Rpackages | tr '\n' ' ' | install2.r -s --deps TRUE -n 8 
+# RUN install2.r -s --deps TRUE -n 8  $(cat $WORKSPACE/Rpackages | tr '\n' ' ')
+
+
+
+#env LD_PRELOAD=libnvblas.so 
+
+
+
+
+
+
 # protocol buffers ############################################################################
 # this is too much of a pain for now - defaulting to os package (above)
 
@@ -187,14 +385,32 @@ RUN mkdir /opt/freetds && cd /opt/freetds \
 # github cli ##################################################################################
 # https://github.com/cli/cli/blob/trunk/docs/install_linux.md 
 
-RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-key C99B11DEB97541F0 \
-    && apt-add-repository https://cli.github.com/packages \
-    && apt update \
-    && apt install -y gh
+# RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-key C99B11DEB97541F0 \
+#     && apt-add-repository https://cli.github.com/packages \
+#     && apt update \
+#     && apt install -y gh
+
+
 
 # create user #################################################################################
 # using a 'standard' user for now - may make dynamic in the future
 
 #RUN useradd liverware -u 1138 -s /bin/bash -m \
 #    && echo "liveware ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/nopasswd
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
