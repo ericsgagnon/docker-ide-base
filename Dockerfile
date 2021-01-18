@@ -138,6 +138,13 @@ RUN apt-get update \
 
 RUN locale-gen $LANG && dpkg-reconfigure locales
 
+RUN apt update -y && apt upgrade -y && \
+    apt install -y --no-install-recommends \
+    aptitude \
+    man
+
+RUN ldconfig
+
 # nss wrapper lets us mount passwd and group files if necessary
 ENV LD_PRELOAD=/usr/lib/libnss_wrapper.so:$LD_PRELOAD \
     LD_LIBRARY_PATH=/usr/local/lib:/usr/lib:$LD_LIBRARY_PATH \
@@ -157,6 +164,8 @@ RUN mkdir -p \
 
 COPY skel-rsync.sh /etc/profile.d/
 # Databases ################################################################
+
+FROM base as databases
 
 # Install os drivers for common db's 
 RUN apt-get update \
@@ -199,7 +208,7 @@ RUN mkdir /opt/oracle && cd /opt/oracle \
 
 # freetds #####################################################################################
 RUN mkdir /opt/freetds && cd /opt/freetds \
-    && wget -O freetds.tar.gz ftp://ftp.freetds.org/pub/freetds/stable/freetds-$FREETDS_VERSION.tar.gz \  
+    && wget -O freetds.tar.gz ftp://ftp.freetds.org/pub/freetds/stable/freetds-$FREETDS_VERSION.tar.gz \
     && tar xvf freetds.tar.gz \
     && rm freetds.tar.gz \
     && ln -s freetds-$FREETDS_VERSION freetds \
@@ -208,18 +217,29 @@ RUN mkdir /opt/freetds && cd /opt/freetds \
     && make \
     && make install \
     && cat /opt/odbcinst.ini >> /etc/odbcinst.ini \
-    && rm /opt/odbcinst.ini
+    && rm /opt/odbcinst.ini \
+    && ldconfig
+
+# RUN mkdir /opt/freetds && cd /opt/freetds \
+#     && wget -O freetds.tar.gz ftp://ftp.freetds.org/pub/freetds/current/freetds-current.tar.gz \
+#     && tar xvf freetds.tar.gz \
+#     && rm freetds.tar.gz \
+#     && ln -s freetds-$FREETDS_VERSION freetds \
+#     && cd freetds \
+#     && ./configure \
+#     && make \
+#     && make install \
+#     && cat /opt/odbcinst.ini >> /etc/odbcinst.ini \
+#     && rm /opt/odbcinst.ini \
+#     && ldconfig
 
 # python ##################################################
+
+FROM databases as languages
 
 # ensure local python is preferred over distribution python
 ENV PATH /usr/local/bin:$PATH
 ENV PYTHON_VERSION=${PYTHON_VERSION}
-
-RUN apt update -y && apt upgrade -y && \
-    apt install -y --no-install-recommends \
-    aptitude \
-    man
 
 COPY --from=python /usr/local/lib/  /usr/local/lib/
 COPY --from=python /usr/local/bin/  /usr/local/bin/
@@ -236,16 +256,16 @@ ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
 COPY --from=golang  /usr/local/go /usr/local/go
 COPY --from=golang  /go           /go
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-		g++ \
-		gcc \
-		libc6-dev \
-		make \
-		pkg-config && \
-    chmod -R 777 "$GOPATH" && \
-    chsh -s /bin/bash
-
-ENV SHELL=/bin/bash
+RUN 
+# RUN apt-get update && apt-get install -y --no-install-recommends \
+# 		g++ \
+# 		gcc \
+# 		libc6-dev \
+# 		make \
+# 		pkg-config && \
+#     chmod -R 777 "$GOPATH" && \
+#     chsh -s /bin/bash
+# ENV SHELL=/bin/bash
 
 # rust ####################################################
 
@@ -266,6 +286,10 @@ ENV JAVA_HOME=/usr/java/openjdk-15
 
 COPY --from=java      /usr/java  /usr/java
 
+FROM languages as debug
+# docker build --pull -t ericsgagnon/ide-base:dev --target debug -f Dockerfile .
+# docker run -dit --name idedev ericsgagnon/ide-base:dev
+
 # javascript/node ################################
 RUN curl -sL https://deb.nodesource.com/setup_14.x | bash - \
     && apt-get update \
@@ -277,7 +301,7 @@ RUN curl -sL https://deb.nodesource.com/setup_14.x | bash - \
 
 # R ###########################################################
 
-FROM base as dev
+FROM debug as final
 
 COPY  --from=rlang /usr/local/lib/R                /usr/local/lib/R
 COPY  --from=rlang /usr/local/bin/R                /usr/local/bin/
@@ -339,9 +363,6 @@ RUN apt-get update && apt-get install -y \
     saga \
     texlive \
     zlib1g-dev
-
-    # && apt-get install -y \
-    # r-base \
 
 
 
