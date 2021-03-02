@@ -1,54 +1,38 @@
 # docker build --pull -t ericsgagnon/ide-base:dev -f Dockerfile .
 # docker build -t ericsgagnon/ide-base:dev -f Dockerfile .
-# docker run -dit --name ide ericsgagnon/ide-base:dev
+# docker run -i -t --rm --name ide --gpus all --entrypoint="/bin/bash" ericsgagnon/ide-base:dev
+# docker run -i -t --rm --name ide --gpus all ericsgagnon/ide-base:dev /bin/bash
+# docker run -d -i -t --name ide --gpus all ericsgagnon/ide-base:dev
+# docker run --rm --name ide --gpus all ericsgagnon/ide-base:dev nvidia-smi
+# docker build -t ericsgagnon/ide-base:$(date +%Y%m%d) -f Dockerfile . && docker tag ericsgagnon/ide-base:$(date +%Y%m%d) ericsgagnon/ide-base:latest
 # docker build -t ericsgagnon/ide-base:$(date +%Y%m%d%H%M%S) -f Dockerfile .
 # docker build -t ericsgagnon/ide-base:ubuntu20.04-cuda11.1 -f Dockerfile .
 # overview:
-# - uses nvidia cuda devel as base
-# - copies buildpack-deps for first steps
 # - adds additional odbc and utility packages (netstat, tcpdump, etc.)
 # - adds multiple languages: go, python, Go
 
 
-# ARG GOLANG_VERSION=1.15
-# ARG RUST_VERSION=1.47
-# #ARG R_VERSION=4.0.3
-# ARG PYTHON_VERSION=3.9
-# #ARG OIC_VERSION=19.6
-# #ARG CODE_SERVER_VERSION=3.7.1
-
-# FROM golang:${GOLANG_VERSION}       as golang
-# FROM rocker/geospatial:${R_VERSION} as rlang
-# FROM rust:${RUST_VERSION}           as rustlang
-# FROM python:${PYTHON_VERSION}       as python
 
 FROM golang:latest         as golang
 FROM rust:latest           as rust
-FROM python:latest         as python
+# using python 3.8 until tensorflow supports 3.9
+FROM python:3.8            as python
 FROM openjdk:latest        as java
-FROM rocker/ml-verse:4.0.3 as rlang
+FROM node:latest           as node
+FROM rocker/ml-verse:4.0.4 as rlang
 
-FROM ericsgagnon/buildpack-deps-cuda:ubuntu20.04-cuda11.0 as base
-
-# ARG GOLANG_VERSION
-# ARG RUST_VERSION
-# ARG R_VERSION
-# ARG PYTHON_VERSION
-# ARG OIC_VERSION
-# ARG CODE_SERVER_VERSION
-
+FROM ericsgagnon/buildpack-deps-cuda:cuda11.2-ubuntu20.04 as base
 
 # environment variables
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=UTC
 ENV LANG=en_US.UTF-8
 #ENV LC_ALL=en_US.UTF-8
-ENV PASSWORD password
+ENV PASSWORD=password
 ENV SHELL=/bin/bash
 ENV WORKSPACE=/workspace
 ENV FREETDS_VERSION=1.2.18
-#ENV PROTOBUF_VERSION=v3.14.0
-ENV CUDA_HOME               /usr/local/cuda
+ENV CUDA_HOME=/usr/local/cuda
 
 # this may not be necessary but may give insight on source files
 COPY . ${WORKSPACE}/
@@ -60,6 +44,7 @@ RUN chsh -s /bin/bash
 # install os libraries, utilities, etc. - some of these are already installed in buildpack-deps
 RUN apt-get update \
     && apt-get upgrade -y \
+    && bash -c 'yes | unminimize' \
     && apt-get install -y \
     ca-certificates \
     libnss-wrapper \
@@ -141,15 +126,15 @@ RUN locale-gen $LANG && dpkg-reconfigure locales
 RUN apt update -y && apt upgrade -y && \
     apt install -y --no-install-recommends \
     aptitude \
-    man
+    man 
 
 RUN ldconfig
 
 # nss wrapper lets us mount passwd and group files if necessary
-ENV LD_PRELOAD=/usr/lib/libnss_wrapper.so:$LD_PRELOAD \
-    LD_LIBRARY_PATH=/usr/local/lib:/usr/lib:$LD_LIBRARY_PATH \
-    NSS_WRAPPER_PASSWD=/etc/passwd \
-    NSS_WRAPPER_GROUP=/etc/group
+ENV LD_PRELOAD=/usr/lib/libnss_wrapper.so:$LD_PRELOAD
+ENV LD_LIBRARY_PATH=/usr/local/lib:/usr/lib:$LD_LIBRARY_PATH
+ENV NSS_WRAPPER_PASSWD=/etc/passwd
+ENV NSS_WRAPPER_GROUP=/etc/group
 
 # user home directories ####################################################
 
@@ -158,7 +143,7 @@ RUN mkdir -p \
     /etc/skel/.local/share \
     /etc/skel/.config      \
     /etc/skel/.cache       \
-    && echo 'export PATH=$HOME/.local/bin:$PATH'           >> /etc/skel/.bashrc
+    && echo 'export PATH=$HOME/.local/bin:$PATH'           >> /etc/skel/.bashrc     
 #    && echo 'export LD_LIBRARY_PATH=/usr/lib:/usr/local/lib:$LD_LIBRARY_PATH' >> /etc/skel/.bashrc 
 #    && cat $WORKSPACE/bashrc.env.sh | envsubst >> /etc/skel/.bashrc
 
@@ -175,6 +160,7 @@ RUN apt-get update \
     unixodbc-dev \
     libaio1 \
     tdsodbc \
+    postgresql \
     odbc-postgresql \
     libsqliteodbc \
     mariadb-client
@@ -183,7 +169,7 @@ COPY ./odbcinst.ini /opt/odbcinst.ini
 
 # microsoft ###################################################################################
 # ms still demands accepting their license agreement...
-ENV ACCEPT_EULA Y
+ENV ACCEPT_EULA=Y
 ENV PATH=$PATH:/opt/mssql-tools/bin
 
 RUN curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add - \
@@ -193,6 +179,8 @@ RUN apt-get update && apt-get install -y mssql-tools
 
 # oracle ######################################################################################
 ENV OCI_LIB=/opt/oracle/instantclient
+ENV LD_LIBRARY_PATH=/opt/oracle/instantclient:$LD_LIBRARY_PATH
+ENV PATH=/opt/oracle/instantclient:$PATH
 
 COPY ./oci8.pc /usr/lib/pkgconfig/oci8.pc
 
@@ -205,6 +193,13 @@ RUN mkdir /opt/oracle && cd /opt/oracle \
     && mv /opt/oracle/instantclient_* /opt/oracle/instantclient \
     && sh -c "echo /opt/oracle/instantclient > /etc/ld.so.conf.d/oracle-instantclient.conf" \
     && ldconfig
+
+RUN /opt/oracle/instantclient/odbc_update_ini.sh \
+    / \
+    /opt/oracle/instantclient \
+    "Oracle ODBC Driver" \
+    "Oracle ODBC Driver" \
+    /etc/odbc.ini
 
 # freetds #####################################################################################
 RUN mkdir /opt/freetds && cd /opt/freetds \
@@ -220,25 +215,12 @@ RUN mkdir /opt/freetds && cd /opt/freetds \
     && rm /opt/odbcinst.ini \
     && ldconfig
 
-# RUN mkdir /opt/freetds && cd /opt/freetds \
-#     && wget -O freetds.tar.gz ftp://ftp.freetds.org/pub/freetds/current/freetds-current.tar.gz \
-#     && tar xvf freetds.tar.gz \
-#     && rm freetds.tar.gz \
-#     && ln -s freetds-$FREETDS_VERSION freetds \
-#     && cd freetds \
-#     && ./configure \
-#     && make \
-#     && make install \
-#     && cat /opt/odbcinst.ini >> /etc/odbcinst.ini \
-#     && rm /opt/odbcinst.ini \
-#     && ldconfig
-
 # python ##################################################
 
 FROM databases as languages
 
 # ensure local python is preferred over distribution python
-ENV PATH /usr/local/bin:$PATH
+ENV PATH=/usr/local/bin:$PATH
 ENV PYTHON_VERSION=${PYTHON_VERSION}
 
 COPY --from=python /usr/local/lib/  /usr/local/lib/
@@ -247,37 +229,47 @@ COPY --from=python /usr/local/bin/  /usr/local/bin/
 RUN ldconfig
 
 # go ######################################################
-ARG GOLANG_VERSION=${GOLANG_VERSION}
-
-ENV GOLANG_VERSION=${GOLANG_VERSION}
-ENV GOPATH /go
-ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
+#ENV GOPATH=/go
+ENV PATH=$GOPATH/bin:/usr/local/go/bin:$PATH
 
 COPY --from=golang  /usr/local/go /usr/local/go
-COPY --from=golang  /go           /go
+#COPY --from=golang  /go           /go
 
-RUN 
-# RUN apt-get update && apt-get install -y --no-install-recommends \
-# 		g++ \
-# 		gcc \
-# 		libc6-dev \
-# 		make \
-# 		pkg-config && \
-#     chmod -R 777 "$GOPATH" && \
-#     chsh -s /bin/bash
-# ENV SHELL=/bin/bash
+RUN mkdir -p /etc/skel/.local/share/go \
+    && echo 'export GOPATH=$HOME/.local/share/go' >> /etc/skel/.bashrc
+
+#    /etc/skel/.local/bin/go \
+#    && echo 'export GOBIN=$HOME/.local/bin/go'    >> /etc/skel/.bashrc
 
 # rust ####################################################
 
-ARG RUST_VERSION
-ENV RUST_VERSION=${RUST_VERSION}
+# rust doesn't like system-wide 
+ENV RUSTUP_HOME='~/.local/share/rustup'
+ENV CARGO_HOME='~/.local/share/cargo'
 
-ENV RUSTUP_HOME=/usr/local/rustup
-ENV CARGO_HOME=/usr/local/cargo
-ENV PATH=/usr/local/cargo/bin:$PATH
+RUN    mkdir -p /etc/skel/.local/share/rustup \
+    && mkdir -p /etc/skel/.local/share/cargo 
 
-COPY --from=rust  /usr/local/rustup /usr/local/rustup
-COPY --from=rust  /usr/local/cargo /usr/local/cargo
+#ENV RUSTUP_HOME=/usr/local/rustup
+#ENV CARGO_HOME=/usr/local/cargo
+
+# COPY --from=rust  /usr/local/rustup /usr/local/rustup
+# COPY --from=rust  /usr/local/cargo /usr/local/cargo
+
+
+# ENV PATH=/usr/local/cargo/bin:$PATH
+# ENV PATH=\$HOME/.local/share/cargo/bin:$PATH
+
+    # && chmod +x /usr/local/cargo/env \
+    #&& echo "rustup self update"
+    #&& echo "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | bash -s -- -y &> /dev/null " >> /etc/skel/.bashrc
+
+#     && echo "source <(rustup completions bash)" >> /etc/profile.d/base-env.sh \
+#     && echo "source <(rustup completions bash)" >> /etc/skel/.bashrc \
+#     && echo 'source "/usr/local/cargo/env"'     >> /etc/profile.d/base-env.sh \
+#     && echo 'source "/usr/local/cargo/env"'     >> /etc/skel/.bashrc \
+#     && echo 'rustup install stable' \
+#     #&& rustup default stable
 
 # java ####################################################
 
@@ -286,22 +278,26 @@ ENV JAVA_HOME=/usr/java/openjdk-15
 
 COPY --from=java      /usr/java  /usr/java
 
-FROM languages as debug
-# docker build --pull -t ericsgagnon/ide-base:dev --target debug -f Dockerfile .
-# docker run -dit --name idedev ericsgagnon/ide-base:dev
+# javascript/node ################################
+# RUN curl -sL https://deb.nodesource.com/setup_14.x | bash - \
+#     && apt-get update \
+#     && apt-get install -y nodejs \
+#     && curl -sL https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - \
+#     && echo "deb https://dl.yarnpkg.com/debian/ stable main" | tee /etc/apt/sources.list.d/yarn.list \
+#     && apt-get update \
+#     && apt-get install -y yarn
 
 # javascript/node ################################
-RUN curl -sL https://deb.nodesource.com/setup_14.x | bash - \
-    && apt-get update \
-    && apt-get install -y nodejs \
-    && curl -sL https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - \
-    && echo "deb https://dl.yarnpkg.com/debian/ stable main" | tee /etc/apt/sources.list.d/yarn.list \
-    && apt-get update \
-    && apt-get install -y yarn
+# can't use apt to install node without losing libnode-dev and libnode64, 
+# so copying from node docker image
+COPY  --from=node /usr/local  /tmp/node/local
+COPY  --from=node /opt        /tmp/node/opt
+
+RUN rsync -a --ignore-existing /tmp/node/local/ /usr/local/ \
+    && rsync -a --ignore-existing /tmp/node/opt/ /opt/ \
+    && rm -rf /tmp/node
 
 # R ###########################################################
-
-FROM debug as final
 
 COPY  --from=rlang /usr/local/lib/R                /usr/local/lib/R
 COPY  --from=rlang /usr/local/bin/R                /usr/local/bin/
@@ -313,14 +309,12 @@ COPY  --from=rlang /etc/R                          /etc/R
 #COPY  --from=rlang /usr/local/bin/ /usr/local/bin/
 
 ENV CRAN="https://packagemanager.rstudio.com/all/__linux__/focal/latest"
-ENV R_ENVIRON_USER=~/.config/R/.Renviron
-ENV R_PROFILE_USER=~/.config/R/.Rprofile
+ENV R_ENVIRON_USER="~/.config/R/.Renviron"
+ENV R_PROFILE_USER="~/.config/R/.Rprofile"
 ENV R_VERSION=4.0
-
-# RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys E298A3A825C0D65DFD57CBB651716619E084DAB9 \
-#     && add-apt-repository 'deb https://cloud.r-project.org/bin/linux/ubuntu focal-cran40/' \
-#     && apt-get update \
-#     && R CMD javareconf
+ENV R_LIBS_USER="~/.local/share/R/$R_VERSION/lib"
+ENV R_LIBS="~/.local/share/R/$R_VERSION/lib"
+ENV WORKON_HOME="~/.virtualenvs"
 
 RUN apt-get update && apt-get install -y \
     tcl \
@@ -360,78 +354,81 @@ RUN apt-get update && apt-get install -y \
     libwebp-dev \
     libxml2-dev \
     pari-gp \
+    poppler-utils \
     saga \
     texlive \
+    vim.tiny \
     zlib1g-dev
 
-
-
-# RUN mkdir -p /etc/skel/.local/share/R/$R_VERSION/lib  \
-#     && echo "R_LIBS_USER=${R_LIBS_USER-'~/.local/share/R/"$R_VERSION"/lib'}"        >> /usr/local/lib/R/etc/Renviron \
-#     && echo "R_VERSION=$R_VERSION"                                          >> /usr/local/lib/R/etc/Renviron \
-#     && echo "R_VERSION=$R_VERSION"                                                  >> /usr/local/lib/R/etc/Renviron \
-#     && echo "R_ENVIRON_USER=$R_ENVIRON_USER"                                        >> /usr/local/lib/R/etc/Renviron \
-#     && echo "R_PROFILE_USER=$R_PROFILE_USER"                                        >> /usr/local/lib/R/etc/Renviron \
-#     && echo "CRAN=$CRAN"                                                            >> /usr/local/lib/R/etc/Renviron 
-
 # commenting during dev to improve build time
-# RUN xargs -I {} -a /tmp/packages -0 install2.r -s --deps TRUE -n 8 {} # not this one - behavior changed when moving to ubuntu
-#RUN head -n 2 $WORKSPACE/Rpackages | tr '\n' ' ' | install2.r -s --deps TRUE -n 8 
-# RUN install2.r -s --deps TRUE -n 8  $(cat $WORKSPACE/Rpackages | tr '\n' ' ')
+RUN install2.r -s --deps TRUE -n 8  $(cat $WORKSPACE/Rpackages | tr '\n' ' ')
 
+RUN mkdir -p /etc/skel/.local/share/R/$R_VERSION/lib  \
+    && echo "R_LIBS_USER=${R_LIBS_USER-'~/.local/share/R/"$R_VERSION"/lib'}"        >> /usr/local/lib/R/etc/Renviron \
+    && echo "R_VERSION=$R_VERSION"                                                  >> /usr/local/lib/R/etc/Renviron \
+    && echo "R_ENVIRON_USER=$R_ENVIRON_USER"                                        >> /usr/local/lib/R/etc/Renviron \
+    && echo "R_PROFILE_USER=$R_PROFILE_USER"                                        >> /usr/local/lib/R/etc/Renviron \
+    && echo "CRAN=$CRAN"                                                            >> /usr/local/lib/R/etc/Renviron 
+    #&& echo "R_LIBS=${R_LIBS_USER-'~/.local/share/R/"$R_VERSION"/lib'}"             >> /usr/local/lib/R/etc/Renviron \
 
+RUN mkdir -p /etc/skel/.config/R \
+    && cat $WORKSPACE/.Renviron | envsubst > /etc/skel/.config/R/.Renviron
 
-#env LD_PRELOAD=libnvblas.so 
+# user-utilities ##############################################################################
 
+FROM languages as user-utilities
 
+# helm ####################################################
+RUN curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash -
 
-
-
-
-# protocol buffers ############################################################################
-# this is too much of a pain for now - defaulting to os package (above)
-
-# RUN mkdir /usr/local/protocolbuffers \
-#     && PB_REL="https://github.com/protocolbuffers/protobuf/releases" ; \
-#     curl -L -o /tmp/protoc.zip \
-#     $PB_REL/download/v$PROTOBUF_VERSION/protoc-$PROTOBUF_VERSION-linux-x86_64.zip \
-#     && unzip /tmp/protoc.zip /usr/local/
-# RUN curl -LO $( curl -H "Accept: application/vnd.github.v3+json" \
-#     "https://api.github.com/repos/protocolbuffers/protobuf/releases/latest" | \
-#     jq ".assets | .[] | .browser_download_url " | grep linux | grep x86 | grep 64 )
-#curl -s https://api.github.com/repos/protocolbuffers/protobuf/releases/latest | jq -r ".assets[] | select(.name | contains(\"search param for specific download url\")) | .browser_download_url" | wget -i -    
-# ln -s  /usr/local/protocolbuffers/bin/protoc /usr/local/bin/protoc
-# https://api.github.com/repos/protocolbuffers/protobuf/zipball/v3.14.0"
+# docker cli ##############################################
+RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add - \
+    && add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable" \
+    && apt-get update && apt-get install -y \
+    docker-ce-cli
 
 # github cli ##################################################################################
-# https://github.com/cli/cli/blob/trunk/docs/install_linux.md 
+# https://github.com/cli/cli/blob/trunk/docs/install_linux.md #################################
+RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-key C99B11DEB97541F0 \
+    && apt-add-repository https://cli.github.com/packages \
+    && apt-get update \
+    && apt-get install -y gh
 
-# RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-key C99B11DEB97541F0 \
-#     && apt-add-repository https://cli.github.com/packages \
-#     && apt update \
-#     && apt install -y gh
+FROM user-utilities as final
 
+# setup fixuid to deal with potential permission/ownership issues
+RUN curl -SsL https://github.com/boxboat/fixuid/releases/download/v0.5/fixuid-0.5-linux-amd64.tar.gz | tar -C /usr/local/bin -xzf - && \
+    chown root:root /usr/local/bin/fixuid && \
+    chmod 4755 /usr/local/bin/fixuid && \
+    mkdir -p /etc/fixuid && \
+    printf "user: $USER\ngroup: $GROUP\n" > /etc/fixuid/config.yml
 
+# setup s6 ####################################################################################
+# s6 process manager ######################################################
+ADD https://github.com/just-containers/s6-overlay/releases/download/v2.2.0.3/s6-overlay-amd64-installer /tmp/
+RUN chmod +x /tmp/s6-overlay-amd64-installer && /tmp/s6-overlay-amd64-installer /
+
+COPY s6-container-env-vars.sh /etc/cont-init.d/
+COPY s6-userconf.sh /etc/cont-init.d/
+
+# setup entrypoint ############################################################################
+#RUN mkdir -p /entrypoint/entrypoint.d
+#COPY entrypoint.sh /entrypoint/entrypoint.sh
 
 # create user #################################################################################
 # using a 'standard' user for now - may make dynamic in the future
+ENV USER=liveware
+ENV USERID=1138
+ENV GROUP=liveware
+ENV GROUPID=1138
+ENV GROUPS=''
+ENV UPDATE_PASSWORD=false
+ENV PASSWORD_FILE=''
+ENV PASSWORD=password
+ENV ROOT=true
+#ENTRYPOINT "/bin/bash"
 
-#RUN useradd liverware -u 1138 -s /bin/bash -m \
-#    && echo "liveware ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/nopasswd
+ENTRYPOINT [ "/init" ]
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# use bash as default cmd
+CMD [ "/bin/bash" ]

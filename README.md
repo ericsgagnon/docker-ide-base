@@ -1,2 +1,14 @@
 # docker-ide-base
-common base for several of my personal ide docker images. 
+A base image for ide's, etc.  
+
+-  based on nvidia-cudagl  
+-  imitates buildpack-deps  
+-  uses s6-overlay for cmd and process supervision  
+  -  user creation, env vars, intializations via scripts in /etc/cont-init.d/  
+  -  persistent services/daemon's via script in /etc/services.d/
+  -  finalizers (graceful service shutdown, etc.) via scripts in /etc/cont-finish.d/
+
+Notes about using s6-overlay:  
+
+-  avoiding /etc/fix-attrs.d/ - it's easier to fix attrs via scripts in /etc/cont-init.d/  
+-  
