@@ -13,7 +13,7 @@ the default ones will not be evaluated.
 -------------------------------------------------------------
 ")
 
-.user_package_dir <- "~/.local/share/R/4.0/lib"
-.libPaths(c(.user_package_dir, .libPaths()))
-rm(.user_package_dir) # cleanup 
-# .libPaths() # check if needed
+# .user_package_dir <- "~/.local/share/R/4.0/lib"
+# .libPaths(c(.user_package_dir, .libPaths()))
+# rm(.user_package_dir) # cleanup 
+# # .libPaths() # check if needed

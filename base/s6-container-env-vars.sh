@@ -15,5 +15,5 @@ cat /etc/profile.d/base-env.sh | sort | uniq | \
     sed -E "s/^(export PATH=.+)/\\1:\$PATH/g" | \
     tee /etc/profile.d/base-env.sh
 
-# add env vars to R
-cat /etc/profile.d/base-env.sh | grep -E "^export " | sed -e "s/^export //g" | envsubst | tee /etc/R/Renviron.site
+
+

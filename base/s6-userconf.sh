@@ -82,6 +82,3 @@ if [ $user_id -ne $USERID ] ; then
     usermod -u $USERID $USER
 fi
 
-
-# install rust ##################################################
-su - liveware -c 'curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | bash -s -- -y'

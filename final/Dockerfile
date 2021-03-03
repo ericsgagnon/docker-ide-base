@@ -1,43 +1,19 @@
-# docker build --pull -t ericsgagnon/ide-base:dev -f Dockerfile .
-# docker build -t ericsgagnon/ide-base:dev -f Dockerfile .
-# docker run -i -t --rm --name ide --gpus all --entrypoint="/bin/bash" ericsgagnon/ide-base:dev
-# docker run -i -t --rm --name ide --gpus all ericsgagnon/ide-base:dev /bin/bash
-# docker run -d -i -t --name ide --gpus all ericsgagnon/ide-base:dev
-# docker run --rm --name ide --gpus all ericsgagnon/ide-base:dev nvidia-smi
-# docker build -t ericsgagnon/ide-base:$(date +%Y%m%d) -f Dockerfile . && docker tag ericsgagnon/ide-base:$(date +%Y%m%d) ericsgagnon/ide-base:latest
-# docker build -t ericsgagnon/ide-base:$(date +%Y%m%d%H%M%S) -f Dockerfile .
-# docker build -t ericsgagnon/ide-base:ubuntu20.04-cuda11.1 -f Dockerfile .
-# overview:
-# - adds additional odbc and utility packages (netstat, tcpdump, etc.)
-# - adds multiple languages: go, python, Go
+# docker build --pull -t ericsgagnon/ide-base:dev-final -f Dockerfile .
+# docker build --build-arg=GIT_TAG=$(git describe --tags) --pull -t ericsgagnon/ide-base:$(git describe --tags)-final -f Dockerfile .
+# docker run -i -t --rm --name ide --gpus all ericsgagnon/ide-base:$(git describe --tags)-final /bin/bash
+# docker push ericsgagnon/ide-base:$(git describe --tags)-final
+# docker run -d -i -t --name ide --gpus all ericsgagnon/ide-base:$(git describe --tags)-final
+# docker run --rm --name ide --gpus all ericsgagnon/ide-base:dev-final nvidia-smi
 
+ARG GIT_TAG=dev
+ARG STAGE=final
+ARG TAG=${GIT_TAG}-${STAGE}
 
-
-FROM golang:latest         as golang
-FROM rust:latest           as rust
-# using python 3.8 until tensorflow supports 3.9
-FROM python:3.8            as python
-FROM openjdk:latest        as java
-FROM node:latest           as node
-FROM rocker/ml-verse:4.0.4 as rlang
-
-FROM ericsgagnon/buildpack-deps-cuda:cuda11.2-ubuntu20.04 as base
-
-# environment variables
-ENV DEBIAN_FRONTEND=noninteractive
-ENV TZ=UTC
-ENV LANG=en_US.UTF-8
-#ENV LC_ALL=en_US.UTF-8
-ENV PASSWORD=password
-ENV SHELL=/bin/bash
-ENV WORKSPACE=/workspace
-ENV FREETDS_VERSION=1.2.18
-ENV CUDA_HOME=/usr/local/cuda
+FROM ericsgagnon/ide-base:${GIT_TAG}-languages as base
 
 # this may not be necessary but may give insight on source files
+ENV WORKSPACE="/tmp/workspace/final"
 COPY . ${WORKSPACE}/
-
-RUN chsh -s /bin/bash
 
 ##################################################################################################################
 
