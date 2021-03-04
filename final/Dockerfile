@@ -5,7 +5,7 @@
 # git rev-parse HEAD
 # git tag -f $(date +%Y%m%d) && git tag -f dev
 # cd $(git rev-parse --show-toplevel)/final && docker build --build-arg=GIT_TAG=$(git describe --tags) --pull -t ericsgagnon/ide-base:$(git describe --tags)-final -f Dockerfile .
-# docker tag ericsgagnon/ide-base:
+# docker tag ericsgagnon/ide-base:$(git describe --tags)-final ericsgagnon/ide-base:$(git describe --tags) && docker push ericsgagnon/ide-base:$(git describe --tags)-final && docker push ericsgagnon/ide-base:$(git describe --tags)
 # docker run -i -t --rm --name ide --gpus all ericsgagnon/ide-base:$(git describe --tags)-final /bin/bash
 # docker push ericsgagnon/ide-base:$(git describe HEAD --tags)-final && docker tag ericsgagnon/ide-base:$(git describe HEAD --tags)-final ericsgagnon/ide-base:$(git describe HEAD --tags) && docker push ericsgagnon/ide-base:$(git describe HEAD --tags)
 # docker run -d -i -t --name ide --gpus all ericsgagnon/ide-base:$(git describe --tags)-final

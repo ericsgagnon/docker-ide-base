@@ -1,5 +1,5 @@
 # docker build --pull -t ericsgagnon/ide-base:dev-languages -f Dockerfile .
-# docker build --build-arg=GIT_TAG=$(git describe --tags) --pull -t ericsgagnon/ide-base:$(git describe --tags)-languages -f Dockerfile .
+# cd $(git rev-parse --show-toplevel)/languages && docker build --build-arg=GIT_TAG=$(git describe --tags) --pull -t ericsgagnon/ide-base:$(git describe --tags)-languages -f Dockerfile .
 # docker run -i -t --rm --name ide --gpus all ericsgagnon/ide-base:$(git describe --tags)-languages /bin/bash
 # docker push ericsgagnon/ide-base:$(git describe --tags)-languages
 # docker run -d -i -t --name ide --gpus all ericsgagnon/ide-base:$(git describe --tags)-languages
@@ -69,30 +69,6 @@ RUN cd /usr/local/bin \
 RUN python -m ensurepip \
     && python -m ensurepip --upgrade \
     && python -m pip install -U pip
-    # && pip install -U \
-    #     numpy \
-    #     scipy \
-    #     pandas \
-    #     keras \
-    #     theano \
-    #     scikit-learn \
-    #     statsmodels \
-    #     gensim \
-    #     opencv-python \
-    #     torch \
-    #     tensorflow \
-    #     xgboost \
-    #     scrapy \
-    #     nltk \
-    #     pybrain \
-    #     matplotlib \
-    #     seaborn \
-    #     bokeh \
-    #     plotly \
-    #     pydot
-
-
-#RUN curl https://bootstrap.pypa.io/get-pip.py | bash
 
 # go ######################################################
 ENV PATH=$GOPATH/bin:/usr/local/go/bin:$PATH
@@ -109,8 +85,8 @@ RUN mkdir -p \
 # rust ####################################################
 
 # rust doesn't like system-wide, just configuring env vars 
-ENV RUSTUP_HOME='~/.local/share/rustup'
-ENV CARGO_HOME='~/.local/share/cargo'
+ENV RUSTUP_HOME='.local/share/rustup'
+ENV CARGO_HOME='.local/share/cargo'
 
 RUN    mkdir -p /etc/skel/.local/share/rustup \
     && mkdir -p /etc/skel/.local/share/cargo 
