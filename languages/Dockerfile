@@ -18,13 +18,15 @@ FROM rocker/ml-verse:4.0.4 as rlang
 FROM ericsgagnon/ide-base:${GIT_TAG}-databases as base
 
 # this may not be necessary but may give insight on source files
-ENV WORKSPACE="/tmp/workspace/languages"
+ENV WORKSPACE=/tmp/workspace/ide-base/languages
 COPY . ${WORKSPACE}/
 
 # ensure local python is preferred over distribution python
 ENV PYTHON_VERSION 3.8.8
 ENV PATH=/usr/local/bin:$PATH
-ENV WORKON_HOME="~/.virtualenvs"
+ENV WORKON_HOME='$HOME/.virtualenvs'
+
+RUN echo 'export WORKON_HOME=$HOME/.virtualenvs' >> /etc/profile.d/env.sh
 
 RUN apt-get update && apt-get -y install \
     build-essential \
@@ -85,11 +87,15 @@ RUN mkdir -p \
 # rust ####################################################
 
 # rust doesn't like system-wide, just configuring env vars 
-ENV RUSTUP_HOME='.local/share/rustup'
-ENV CARGO_HOME='.local/share/cargo'
+ENV RUSTUP_HOME='$HOME/.local/share/rustup'
+ENV CARGO_HOME='$HOME/.local/share/cargo'
 
 RUN    mkdir -p /etc/skel/.local/share/rustup \
-    && mkdir -p /etc/skel/.local/share/cargo 
+    && mkdir -p /etc/skel/.local/share/cargo \
+    && echo 'export RUSTUP_HOME=$HOME/.local/share/rustup' >> /etc/skel/.bashrc     \
+    && echo 'export CARGO_HOME=$HOME/.local/share/cargo'   >> /etc/skel/.bashrc     \
+    && echo 'export RUSTUP_HOME=$HOME/.local/share/rustup' >> /etc/profile.d/env.sh \
+    && echo 'export CARGO_HOME=$HOME/.local/share/cargo'   >> /etc/profile.d/env.sh
 
 # java ####################################################
 
@@ -119,11 +125,11 @@ COPY  --from=rlang /etc/R                          /etc/R
 #COPY  --from=rlang /usr/local/bin/ /usr/local/bin/
 
 ENV CRAN="https://packagemanager.rstudio.com/all/__linux__/focal/latest"
-ENV R_ENVIRON_USER="~/.config/R/.Renviron"
-ENV R_PROFILE_USER="~/.config/R/.Rprofile"
+ENV R_ENVIRON_USER='$HOME/.config/R/.Renviron'
+ENV R_PROFILE_USER='$HOME/.config/R/.Rprofile'
 ENV R_VERSION=4.0
-ENV R_LIBS_USER="~/.local/share/R/$R_VERSION/lib"
-ENV R_LIBS="~/.local/share/R/$R_VERSION/lib"
+ENV R_LIBS_USER='$HOME/.local/share/R/$R_VERSION/lib'
+ENV R_LIBS='$HOME/.local/share/R/$R_VERSION/lib'
 
 RUN apt-get update && apt-get install -y \
     tcl \
@@ -173,7 +179,7 @@ RUN apt-get update && apt-get install -y \
 RUN install2.r -s --deps TRUE -n 8  $(cat $WORKSPACE/Rpackages | tr '\n' ' ')
 
 RUN mkdir -p /etc/skel/.local/share/R/$R_VERSION/lib  \
-    && echo "R_LIBS_USER=${R_LIBS_USER-'~/.local/share/R/"$R_VERSION"/lib'}"        >> /usr/local/lib/R/etc/Renviron \
+    && echo "R_LIBS_USER=${R_LIBS_USER-'$HOME/.local/share/R/"$R_VERSION"/lib'}"    >> /usr/local/lib/R/etc/Renviron \
     && echo "R_VERSION=$R_VERSION"                                                  >> /usr/local/lib/R/etc/Renviron \
     && echo "R_ENVIRON_USER=$R_ENVIRON_USER"                                        >> /usr/local/lib/R/etc/Renviron \
     && echo "R_PROFILE_USER=$R_PROFILE_USER"                                        >> /usr/local/lib/R/etc/Renviron \
@@ -181,5 +187,5 @@ RUN mkdir -p /etc/skel/.local/share/R/$R_VERSION/lib  \
 
 RUN mkdir -p /etc/skel/.config/R \
     && cat $WORKSPACE/.Renviron | envsubst > /etc/skel/.config/R/.Renviron \
-    && cat /tmp/workspace/languages/s6-userconf.sh           >> /etc/cont-init.d/s6-userconf.sh \
-    && cat /tmp/workspace/languages/s6-container-env-vars.sh >> /etc/cont-init.d/s6-container-env-vars.sh 
+    && cat ${WORKSPACE}/s6-userconf.sh           >> /etc/cont-init.d/s6-userconf.sh \
+    && cat ${WORKSPACE}/s6-container-env-vars.sh >> /etc/cont-init.d/s6-container-env-vars.sh 

@@ -14,6 +14,10 @@ FROM ericsgagnon/ide-base:${GIT_TAG}-base as base
 # environment variables
 ENV FREETDS_VERSION=1.2.18
 
+# this may not be necessary but may give insight on source files
+ENV WORKSPACE=/tmp/workspace/ide-base/databases
+COPY . ${WORKSPACE}/
+
 # Install os drivers for common db's 
 RUN apt-get update \
     && apt-get upgrade -y \

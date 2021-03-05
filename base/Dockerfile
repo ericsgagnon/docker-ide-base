@@ -1,8 +1,9 @@
-# docker build --pull -t ericsgagnon/ide-base:dev-base -f Dockerfile .
+# cd $(git rev-parse --show-toplevel)/base && docker build --pull -t ericsgagnon/ide-base:dev-base -f Dockerfile .
 # docker build --build-arg=GIT_TAG=$(git describe --tags) --pull -t ericsgagnon/ide-base:$(git describe --tags)-base -f Dockerfile .
 # docker run -i -t --rm --name ide --gpus all ericsgagnon/ide-base:$(git describe --tags)-base /bin/bash
 # docker push ericsgagnon/ide-base:$(git describe --tags)-base
 # docker run -d -i -t --name ide --gpus all ericsgagnon/ide-base:$(git describe --tags)-base 
+# docker run -d -i -t --name ide --gpus all ericsgagnon/ide-base:dev-base 
 # docker run --rm --name ide --gpus all ericsgagnon/ide-base:dev nvidia-smi
 
 ARG GIT_TAG=dev
@@ -18,7 +19,7 @@ ENV LANG=en_US.UTF-8
 #ENV LC_ALL=en_US.UTF-8
 ENV PASSWORD=password
 ENV SHELL=/bin/bash
-ENV WORKSPACE=/workspace
+ENV WORKSPACE=/tmp/workspace/ide-base/base
 ENV CUDA_HOME=/usr/local/cuda
 
 # this may not be necessary but may give insight on source files
@@ -138,7 +139,7 @@ RUN curl -SsL https://github.com/boxboat/fixuid/releases/download/v0.5/fixuid-0.
     chown root:root /usr/local/bin/fixuid && \
     chmod 4755 /usr/local/bin/fixuid && \
     mkdir -p /etc/fixuid && \
-    printf "user: $USER\ngroup: $GROUP\n" > /etc/fixuid/config.yml
+    printf "user: $USER_NAME\ngroup: $GROUP_NAME\n" > /etc/fixuid/config.yml
 
 # setup s6 ####################################################################################
 # s6 process manager ######################################################
@@ -149,14 +150,15 @@ COPY s6-container-env-vars.sh   /etc/cont-init.d/
 COPY s6-nvidia-check.sh         /etc/cont-init.d/
 COPY s6-userconf.sh             /etc/cont-init.d/
 
-ENV USER=liveware
-ENV USERID=1138
-ENV GROUP=liveware
-ENV GROUPID=1138
-ENV GROUPS=''
-ENV UPDATE_PASSWORD=false
-ENV PASSWORD_FILE=''
+ENV USER_NAME=liveware
+ENV USER_ID=1138
+ENV GROUP_NAME=${USER_NAME}
+ENV GROUP_ID=${USER_ID}
+ENV GROUP_LIST=''
+ENV USER_HOME=/home/${USER_NAME}
 ENV PASSWORD=password
+ENV PASSWORD_FILE=''
+ENV UPDATE_PASSWORD=false
 ENV ROOT=true
 
 ENTRYPOINT [ "/init" ]
