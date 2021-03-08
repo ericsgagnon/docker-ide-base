@@ -1,13 +1,5 @@
-# docker build --pull -t ericsgagnon/ide-base:dev-languages -f Dockerfile .
-# cd $(git rev-parse --show-toplevel)/languages && docker build --build-arg=GIT_TAG=$(git describe --tags) --pull -t ericsgagnon/ide-base:$(git describe --tags)-languages -f Dockerfile .
-# docker run -i -t --rm --name ide --gpus all ericsgagnon/ide-base:$(git describe --tags)-languages /bin/bash
-# docker push ericsgagnon/ide-base:$(git describe --tags)-languages
-# docker run -d -i -t --name ide --gpus all ericsgagnon/ide-base:$(git describe --tags)-languages
-# docker run --rm --name ide --gpus all ericsgagnon/ide-base:dev-languages nvidia-smi
 
-ARG GIT_TAG=dev
-ARG STAGE=languages
-ARG TAG=${GIT_TAG}-${STAGE}
+ARG VERSION=dev
 
 FROM golang:latest         as golang
 # using python 3.8 until tensorflow supports 3.9
@@ -15,7 +7,7 @@ FROM golang:latest         as golang
 FROM openjdk:latest        as java
 FROM node:latest           as node
 FROM rocker/ml-verse:4.0.4 as rlang
-FROM ericsgagnon/ide-base:${GIT_TAG}-databases as base
+FROM ericsgagnon/ide-base:${VERSION}-databases as base
 
 # this may not be necessary but may give insight on source files
 ENV WORKSPACE=/tmp/workspace/ide-base/languages
@@ -23,10 +15,7 @@ COPY . ${WORKSPACE}/
 
 # ensure local python is preferred over distribution python
 ENV PYTHON_VERSION 3.8.8
-ENV PATH=/usr/local/bin:$PATH
-ENV WORKON_HOME='$HOME/.virtualenvs'
-
-RUN echo 'export WORKON_HOME=$HOME/.virtualenvs' >> /etc/profile.d/env.sh
+ENV WORKON_HOME='${HOME}/.virtualenvs'
 
 RUN apt-get update && apt-get -y install \
     build-essential \
@@ -40,7 +29,7 @@ RUN apt-get update && apt-get -y install \
     libsqlite3-dev \
     libbz2-dev \
     && cd /tmp \
-    && wget -O python.tar.xz "https://www.python.org/ftp/python/${PYTHON_VERSION%%[a-z]*}/Python-$PYTHON_VERSION.tar.xz" \
+    && wget -O python.tar.xz "https://www.python.org/ftp/python/${PYTHON_VERSION%%[a-z]*}/Python-${PYTHON_VERSION}.tar.xz" \
     && mkdir -p /usr/src/python \
     && tar -xJC /usr/src/python --strip-components=1 -f python.tar.xz \
     && rm python.tar.xz \
@@ -73,46 +62,57 @@ RUN python -m ensurepip \
     && python -m pip install -U pip
 
 # go ######################################################
-ENV PATH=$GOPATH/bin:/usr/local/go/bin:$PATH
+ENV GOPATH='${HOME}/.local/share/go'
+ENV GOBIN='${HOME}/.local/bin/go'
+ENV PATH=/usr/local/go/bin:${PATH}
 
 COPY --from=golang  /usr/local/go /usr/local/go
 
 RUN mkdir -p \
     /etc/skel/.local/share/go \
-    /etc/skel/.local/bin/go \
-    && echo 'export GOPATH=$HOME/.local/share/go' >> /etc/skel/.bashrc \
-    && echo 'export GOBIN=$HOME/.local/bin/go'    >> /etc/skel/.bashrc \
-    && echo 'export PATH=$GOBIN:$PATH'            >> /etc/skel/.bashrc
+    /etc/skel/.local/bin/go   
+#    && echo "export GOPATH=${GOPATH}"  >> /etc/skel/.bashrc \
 
 # rust ####################################################
 
 # rust doesn't like system-wide, just configuring env vars 
-ENV RUSTUP_HOME='$HOME/.local/share/rustup'
-ENV CARGO_HOME='$HOME/.local/share/cargo'
+ENV RUSTUP_HOME='${HOME}/.local/share/rustup'
+ENV CARGO_HOME='${HOME}/.local/share/cargo'
 
 RUN    mkdir -p /etc/skel/.local/share/rustup \
-    && mkdir -p /etc/skel/.local/share/cargo \
-    && echo 'export RUSTUP_HOME=$HOME/.local/share/rustup' >> /etc/skel/.bashrc     \
-    && echo 'export CARGO_HOME=$HOME/.local/share/cargo'   >> /etc/skel/.bashrc     \
-    && echo 'export RUSTUP_HOME=$HOME/.local/share/rustup' >> /etc/profile.d/env.sh \
-    && echo 'export CARGO_HOME=$HOME/.local/share/cargo'   >> /etc/profile.d/env.sh
+    && mkdir -p /etc/skel/.local/share/cargo 
 
 # java ####################################################
 
-ENV PATH=/usr/java/openjdk-15/bin:$PATH
-ENV JAVA_HOME=/usr/java/openjdk-15
+ENV JAVA_HOME=/usr/java/latest
+ENV PATH=${JAVA_HOME}/bin:${PATH}
 
 COPY --from=java      /usr/java  /usr/java
 
 # javascript/node ################################
 # can't use apt to install node without losing libnode-dev and libnode64, 
 # so copying from node docker image
-COPY  --from=node /usr/local  /tmp/node/local
-COPY  --from=node /opt        /tmp/node/opt
+ENV NVM_DIR='${HOME}/.local/share/nvm'
+ENV npm_config_userconfig='${HOME}/.config/npm/.npmrc'
+ENV npm_config_cache='${HOME}/.cache/npm'
+ENV npm_config_init_module='${HOME}/.config/npm/npm-init.js'
+ENV YARN_RC_FILENAME='${HOME}/.config/yarn/yarnrc'
+ENV YARN_CACHE_FOLDER='${HOME}/.cache/yarn'
 
-RUN rsync -a --ignore-existing /tmp/node/local/ /usr/local/ \
-    && rsync -a --ignore-existing /tmp/node/opt/ /opt/ \
-    && rm -rf /tmp/node
+RUN mkdir -p \
+    /etc/skel/.local/share/nvm \
+    /etc/skel/.config/npm \
+    /etc/skel/.cache/npm \
+    /etc/skel/.config/yarn \
+    /etc/skel/.cache/yarn \
+    /etc/skel/.local/share/yarn
+
+# COPY  --from=node /usr/local  /tmp/node/local
+# COPY  --from=node /opt        /tmp/node/opt
+
+# RUN    rsync -a --ignore-existing /tmp/node/local/  /usr/local/ \
+#     && rsync -a --ignore-existing /tmp/node/opt/    /opt/       \
+#     && rm -rf /tmp/node
 
 # R ###########################################################
 COPY  --from=rlang /usr/local/lib/R                /usr/local/lib/R
@@ -124,12 +124,12 @@ COPY  --from=rlang /usr/local/bin/Rscript          /usr/local/bin/
 COPY  --from=rlang /etc/R                          /etc/R
 #COPY  --from=rlang /usr/local/bin/ /usr/local/bin/
 
-ENV CRAN="https://packagemanager.rstudio.com/all/__linux__/focal/latest"
-ENV R_ENVIRON_USER='$HOME/.config/R/.Renviron'
-ENV R_PROFILE_USER='$HOME/.config/R/.Rprofile'
 ENV R_VERSION=4.0
-ENV R_LIBS_USER='$HOME/.local/share/R/$R_VERSION/lib'
-ENV R_LIBS='$HOME/.local/share/R/$R_VERSION/lib'
+ENV CRAN="https://packagemanager.rstudio.com/all/__linux__/focal/latest"
+ENV R_ENVIRON_USER='${HOME}/.config/R/.Renviron'
+ENV R_PROFILE_USER='${HOME}/.config/R/.Rprofile'
+ENV R_LIBS_USER='${HOME}/.local/share/R/${R_VERSION}/lib'
+ENV R_LIBS='${HOME}/.local/share/R/${R_VERSION}/lib'
 
 RUN apt-get update && apt-get install -y \
     tcl \
@@ -159,7 +159,6 @@ RUN apt-get update && apt-get install -y \
     libopenmpi-dev \
     libpango1.0-dev \
     libpng-dev \
-    libpoppler-cpp-dev \
     libsecret-1-dev \
     libsodium-dev \
     libssl-dev \
@@ -170,22 +169,23 @@ RUN apt-get update && apt-get install -y \
     libxml2-dev \
     pari-gp \
     poppler-utils \
+    libpoppler-glib-dev \
+    libpoppler-dev \
+    libpoppler-cpp0v5 \
+    libpoppler-cpp-dev \
     saga \
     texlive \
     vim.tiny \
     zlib1g-dev
 
 # commenting during dev to improve build time
-RUN install2.r -s --deps TRUE -n 8  $(cat $WORKSPACE/Rpackages | tr '\n' ' ')
+RUN install2.r -s --deps TRUE -n 8  $(cat ${WORKSPACE}/Rpackages | tr '\n' ' ')
 
-RUN mkdir -p /etc/skel/.local/share/R/$R_VERSION/lib  \
-    && echo "R_LIBS_USER=${R_LIBS_USER-'$HOME/.local/share/R/"$R_VERSION"/lib'}"    >> /usr/local/lib/R/etc/Renviron \
-    && echo "R_VERSION=$R_VERSION"                                                  >> /usr/local/lib/R/etc/Renviron \
-    && echo "R_ENVIRON_USER=$R_ENVIRON_USER"                                        >> /usr/local/lib/R/etc/Renviron \
-    && echo "R_PROFILE_USER=$R_PROFILE_USER"                                        >> /usr/local/lib/R/etc/Renviron \
-    && echo "CRAN=$CRAN"                                                            >> /usr/local/lib/R/etc/Renviron 
+RUN mkdir -p /etc/skel/.local/share/R/${R_VERSION}/lib
 
 RUN mkdir -p /etc/skel/.config/R \
-    && cat $WORKSPACE/.Renviron | envsubst > /etc/skel/.config/R/.Renviron \
-    && cat ${WORKSPACE}/s6-userconf.sh           >> /etc/cont-init.d/s6-userconf.sh \
+    && cp  ${WORKSPACE}/.Renviron                   /etc/skel/.config/R/.Renviron           \
+    && cp  ${WORKSPACE}/.Rprofile                   /etc/skel/.config/R/.Rprofile           \
+    && cat ${WORKSPACE}/s6-userconf.sh           >> /etc/cont-init.d/s6-userconf.sh         \
     && cat ${WORKSPACE}/s6-container-env-vars.sh >> /etc/cont-init.d/s6-container-env-vars.sh 
+

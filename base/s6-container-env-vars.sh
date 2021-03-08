@@ -15,7 +15,7 @@ for f in $env_vars; do
     echo "export $f=\"$(cat $env_dir$f)\"" >> $tempfile
 done
 
-# sort and remove duplicates
+# sort, remove duplicates, append to base-env.sh
 cat $tempfile | sort | uniq | tee -a /etc/profile.d/base-env.sh &>/dev/null
 # cleanup
 rm -f $tempfile

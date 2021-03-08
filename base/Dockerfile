@@ -1,14 +1,3 @@
-# cd $(git rev-parse --show-toplevel)/base && docker build --pull -t ericsgagnon/ide-base:dev-base -f Dockerfile .
-# docker build --build-arg=GIT_TAG=$(git describe --tags) --pull -t ericsgagnon/ide-base:$(git describe --tags)-base -f Dockerfile .
-# docker run -i -t --rm --name ide --gpus all ericsgagnon/ide-base:$(git describe --tags)-base /bin/bash
-# docker push ericsgagnon/ide-base:$(git describe --tags)-base
-# docker run -d -i -t --name ide --gpus all ericsgagnon/ide-base:$(git describe --tags)-base 
-# docker run -d -i -t --name ide --gpus all ericsgagnon/ide-base:dev-base 
-# docker run --rm --name ide --gpus all ericsgagnon/ide-base:dev nvidia-smi
-
-ARG GIT_TAG=dev
-ARG STAGE=base
-ARG TAG=${GIT_TAG}-${STAGE}
 
 FROM ericsgagnon/buildpack-deps-cuda:cuda11.2-ubuntu20.04 as base
 
@@ -21,6 +10,10 @@ ENV PASSWORD=password
 ENV SHELL=/bin/bash
 ENV WORKSPACE=/tmp/workspace/ide-base/base
 ENV CUDA_HOME=/usr/local/cuda
+ENV XDG_CONFIG_HOME='${HOME}/.config'
+ENV XDG_CACHE_HOME='${HOME}/.cache'
+ENV XDG_DATA_HOME='${HOME}/.local/share'
+
 
 # this may not be necessary but may give insight on source files
 COPY . ${WORKSPACE}/
@@ -64,6 +57,7 @@ RUN apt-get update \
     procps \
     ssh \
     sudo \
+    less \
     vim \
     libpam-mount \
     cifs-utils \
@@ -118,6 +112,8 @@ RUN apt update -y && apt upgrade -y && \
 
 RUN ldconfig
 
+ENV PAGER=less
+
 # nss wrapper lets us mount passwd and group files if necessary
 ENV LD_PRELOAD=/usr/lib/libnss_wrapper.so:$LD_PRELOAD
 ENV LD_LIBRARY_PATH=/usr/local/lib:/usr/lib:$LD_LIBRARY_PATH
@@ -134,14 +130,6 @@ RUN mkdir -p \
 
 COPY skel-rsync.sh /etc/profile.d/
 
-# setup fixuid to deal with potential permission/ownership issues
-RUN curl -SsL https://github.com/boxboat/fixuid/releases/download/v0.5/fixuid-0.5-linux-amd64.tar.gz | tar -C /usr/local/bin -xzf - && \
-    chown root:root /usr/local/bin/fixuid && \
-    chmod 4755 /usr/local/bin/fixuid && \
-    mkdir -p /etc/fixuid && \
-    printf "user: $USER_NAME\ngroup: $GROUP_NAME\n" > /etc/fixuid/config.yml
-
-# setup s6 ####################################################################################
 # s6 process manager ######################################################
 ADD https://github.com/just-containers/s6-overlay/releases/download/v2.2.0.3/s6-overlay-amd64-installer /tmp/
 RUN chmod +x /tmp/s6-overlay-amd64-installer && /tmp/s6-overlay-amd64-installer /
@@ -149,6 +137,8 @@ RUN chmod +x /tmp/s6-overlay-amd64-installer && /tmp/s6-overlay-amd64-installer 
 COPY s6-container-env-vars.sh   /etc/cont-init.d/
 COPY s6-nvidia-check.sh         /etc/cont-init.d/
 COPY s6-userconf.sh             /etc/cont-init.d/
+
+
 
 ENV USER_NAME=liveware
 ENV USER_ID=1138

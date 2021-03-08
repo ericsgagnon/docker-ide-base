@@ -1,21 +1,6 @@
-# docker build --pull -t ericsgagnon/ide-base:dev-final -f Dockerfile .
-# cd $(git rev-parse --show-toplevel)/final
-# git show-ref --tags -d | sed -e 's,.* refs/tags/,,' -e 's/\^{}//'
-# GIT_HEAD=$(git show-ref --head | head -n 1 | sed -E "s/(^\\w+).*/\1/g")
-# git rev-parse HEAD
-# git tag -f $(date +%Y%m%d) && git tag -f dev
-# cd $(git rev-parse --show-toplevel)/final && docker build --build-arg=GIT_TAG=$(git describe --tags) --pull -t ericsgagnon/ide-base:$(git describe --tags)-final -f Dockerfile .
-# docker tag ericsgagnon/ide-base:$(git describe --tags)-final ericsgagnon/ide-base:$(git describe --tags) && docker push ericsgagnon/ide-base:$(git describe --tags)-final && docker push ericsgagnon/ide-base:$(git describe --tags)
-# docker run -i -t --rm --name ide --gpus all ericsgagnon/ide-base:$(git describe --tags)-final /bin/bash
-# docker push ericsgagnon/ide-base:$(git describe HEAD --tags)-final && docker tag ericsgagnon/ide-base:$(git describe HEAD --tags)-final ericsgagnon/ide-base:$(git describe HEAD --tags) && docker push ericsgagnon/ide-base:$(git describe HEAD --tags)
-# docker run -d -i -t --name ide --gpus all ericsgagnon/ide-base:$(git describe --tags)-final
-# docker run --rm --name ide --gpus all ericsgagnon/ide-base:dev-final nvidia-smi
+ARG VERSION=dev
 
-ARG GIT_TAG=dev
-ARG STAGE=final
-ARG TAG=${GIT_TAG}-${STAGE}
-
-FROM ericsgagnon/ide-base:${GIT_TAG}-languages as base
+FROM ericsgagnon/ide-base:${VERSION}-languages as base
 
 # this may not be necessary but may give insight on source files
 ENV WORKSPACE="/tmp/workspace/final"
@@ -25,7 +10,6 @@ COPY . ${WORKSPACE}/
 # significant is done here. 
 
 # user utilities 
-
 
 # docker cli ##############################################
 RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add - \
@@ -41,7 +25,7 @@ RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-key C99B11DEB97541F0 \
     && apt-get install -y gh
 
 # helm ####################################################
-RUN curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash -
+RUN curl -fsSL https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash -
 
 # kubectl & kubeadm #######################################
 # install latest stable release
@@ -77,4 +61,3 @@ RUN VERSION=$(curl --silent "https://api.github.com/repos/tektoncd/cli/releases/
 
 RUN curl -L https://sourcegraph.com/.api/src-cli/src_linux_amd64 -o /usr/local/bin/src \
     && chmod +x /usr/local/bin/src
-

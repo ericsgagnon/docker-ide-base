@@ -4,4 +4,4 @@
 # when logging in. It won't overwrite existing files, but 
 # will replace deleted files if they exist in /etc/skel
 
-rsync -rltD --ignore-existing /etc/skel/ ~/
+rsync -rltD --ignore-existing /etc/skel/ ${HOME}/
