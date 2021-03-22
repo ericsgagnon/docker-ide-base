@@ -142,6 +142,7 @@ RUN apt-get update && apt-get install -y \
     pandoc \
     bowtie2 \
     imagej \
+    graphviz \
     libpng-dev \
     imagemagick \
     libatk1.0-dev \
