@@ -10,6 +10,20 @@ COPY . ${WORKSPACE}/
 # significant is done here. 
 
 # user utilities 
+RUN apt-get update && apt-get install -y \
+    graphviz \
+    gsfonts \
+    graphviz-doc \
+    fonts-liberation \
+    libann0 \
+    libcdt5 \
+    libcgraph6 \
+    libgts-0.7-5 \
+    libgts-bin \
+    libgvc6 \
+    libgvpr2 \
+    liblab-gamut1 \
+    libpathplan4    
 
 # docker cli ##############################################
 RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add - \

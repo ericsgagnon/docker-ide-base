@@ -29,6 +29,14 @@ if [[ ${push_exit_code} -ne 0 ]] ; then
   exit 1
 fi
 
+if [[ ${STAGE} = 'final' ]] ; then
+  echo "Because image is ${STAGE}, add tag ${TAG_PREFIX} to image and pushing."
+  echo "docker tag ericsgagnon/ide-base:${build_tag} ericsgagnon/ide-base:${TAG_PREFIX}"
+  docker tag ericsgagnon/ide-base:${build_tag} ericsgagnon/ide-base:${TAG_PREFIX}
+  echo "docker push ericsgagnon/ide-base:${TAG_PREFIX}"
+  docker push ericsgagnon/ide-base:${TAG_PREFIX}
+fi
+
 echo "test the image by:"
 echo "docker run -d -i -t --name ide ericsgagnon/ide-base:${build_tag}"
 echo "sleep 10 && docker logs ide "

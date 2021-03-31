@@ -143,6 +143,19 @@ RUN apt-get update && apt-get install -y \
     bowtie2 \
     imagej \
     graphviz \
+    gsfonts \
+    graphviz-doc \
+    fonts-liberation \
+    graphviz \
+    libann0 \
+    libcdt5 \
+    libcgraph6 \
+    libgts-0.7-5 \
+    libgts-bin \
+    libgvc6 \
+    libgvpr2 \
+    liblab-gamut1 \
+    libpathplan4 \
     libpng-dev \
     imagemagick \
     libatk1.0-dev \
@@ -179,7 +192,7 @@ RUN apt-get update && apt-get install -y \
     vim.tiny \
     zlib1g-dev
 
-# commenting during dev to improve build time
+# 
 RUN install2.r -s --deps TRUE -n 8  $(cat ${WORKSPACE}/Rpackages | tr '\n' ' ')
 
 RUN mkdir -p /etc/skel/.local/share/R/${R_VERSION}/lib
@@ -190,3 +203,8 @@ RUN mkdir -p /etc/skel/.config/R \
     && cat ${WORKSPACE}/s6-userconf.sh           >> /etc/cont-init.d/s6-userconf.sh         \
     && cat ${WORKSPACE}/s6-container-env-vars.sh >> /etc/cont-init.d/s6-container-env-vars.sh 
 
+# install microsoft's dotnet runtime - necessary to connect to oracle using oracle vs code plugin
+RUN apt-get update -y && apt-get install -y \
+    apt-transport-https \
+    dotnet-sdk-5.0 \
+    aspnetcore-runtime-5.0

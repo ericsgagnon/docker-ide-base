@@ -27,12 +27,17 @@ RUN apt-get update \
     && apt-get upgrade -y \
     && bash -c 'yes | unminimize' \
     && apt-get install -y \
+    autofs \
+    hdparm \
+    fio \
+    bash-completion \
     ca-certificates \
     libnss-wrapper \
     libuid-wrapper \
     libpam-wrapper \
     gettext \
     libbluetooth-dev \
+    git-lfs \
     tk-dev \
     uuid-dev \
     lsb-release \
@@ -101,6 +106,8 @@ RUN apt-get update \
     dnstracer \
     jq \
     protobuf-compiler \
+    speedtest-cli \
+    iozone3 \
     && rm -rf /var/lib/apt/lists/*
 
 RUN locale-gen $LANG && dpkg-reconfigure locales
