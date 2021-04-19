@@ -14,7 +14,7 @@ echo "Build Context: ${build_context}"
 echo ${build_context}
 
 cd ${build_context} \
-&& docker build --pull -t ericsgagnon/ide-base:${build_tag}  -f ${build_context}/Dockerfile . 
+&& docker build --pull --no-cache=true -t ericsgagnon/ide-base:${build_tag}  -f ${build_context}/Dockerfile . 
 build_exit_code=$?
 cd ${root_dir}/
 if [[ $build_exit_code -ne 0 ]] ; then
