@@ -2,7 +2,11 @@
 ARG VERSION=dev
 
 FROM golang:latest         as golang
+# using python 3.8 until tensorflow supports 3.9
+#FROM python:3.8            as python
 FROM openjdk:latest        as java
+FROM node:latest           as node
+FROM rocker/ml-verse:4.0.4 as rlang
 FROM ericsgagnon/ide-base:${VERSION}-databases as base
 
 # this may not be necessary but may give insight on source files
@@ -10,7 +14,7 @@ ENV WORKSPACE=/tmp/workspace/ide-base/languages
 COPY . ${WORKSPACE}/
 
 # ensure local python is preferred over distribution python
-ENV PYTHON_VERSION 3.9.5
+ENV PYTHON_VERSION 3.8.8
 ENV WORKON_HOME='${HOME}/.virtualenvs'
 
 RUN apt-get update && apt-get -y install \
@@ -58,7 +62,7 @@ RUN python -m ensurepip \
     && python -m pip install -U pip
 
 # go ######################################################
-ENV GOPATH='${XDG_DATA_HOME}/go'
+ENV GOPATH='${HOME}/.local/share/go'
 ENV GOBIN='${HOME}/.local/bin/go'
 ENV PATH=/usr/local/go/bin:${PATH}
 
@@ -103,10 +107,29 @@ RUN mkdir -p \
     /etc/skel/.cache/yarn \
     /etc/skel/.local/share/yarn
 
+# COPY  --from=node /usr/local  /tmp/node/local
+# COPY  --from=node /opt        /tmp/node/opt
+
+# RUN    rsync -a --ignore-existing /tmp/node/local/  /usr/local/ \
+#     && rsync -a --ignore-existing /tmp/node/opt/    /opt/       \
+#     && rm -rf /tmp/node
+
 # R ###########################################################
+COPY  --from=rlang /usr/local/lib/R                /usr/local/lib/R
+COPY  --from=rlang /usr/local/bin/R                /usr/local/bin/
+COPY  --from=rlang /usr/local/bin/install2.r       /usr/local/bin/
+COPY  --from=rlang /usr/local/bin/installGithub.r  /usr/local/bin/
+COPY  --from=rlang /usr/local/bin/r                /usr/local/bin/
+COPY  --from=rlang /usr/local/bin/Rscript          /usr/local/bin/
+COPY  --from=rlang /etc/R                          /etc/R
+#COPY  --from=rlang /usr/local/bin/ /usr/local/bin/
 
 ENV R_VERSION=4.0
 ENV CRAN="https://packagemanager.rstudio.com/all/__linux__/focal/latest"
+ENV R_ENVIRON_USER='${HOME}/.config/R/.Renviron'
+ENV R_PROFILE_USER='${HOME}/.config/R/.Rprofile'
+ENV R_LIBS_USER='${HOME}/.local/share/R/${R_VERSION}/lib'
+ENV R_LIBS='${HOME}/.local/share/R/${R_VERSION}/lib'
 
 RUN apt-get update && apt-get install -y \
     tcl \
@@ -169,124 +192,19 @@ RUN apt-get update && apt-get install -y \
     vim.tiny \
     zlib1g-dev
 
-
-RUN    apt update -y -qq \
-    && apt-key adv --keyserver keyserver.ubuntu.com --recv-keys E298A3A825C0D65DFD57CBB651716619E084DAB9 \
-    && add-apt-repository "deb https://cloud.r-project.org/bin/linux/ubuntu $(lsb_release -cs)-cran40/" \
-    && apt-get update \
-    && apt-get install -y \
-    r-base \
-    r-base-dev \
-    && add-apt-repository -y ppa:c2d4u.team/c2d4u4.0+ \
-    && apt-get update \
-    && apt-get install -y \
-    jags \
-    python3-rpy2 \
-    littler \
-    r-cran-bayesmix \
-    r-cran-bigrquery \
-    r-cran-biocmanager \
-    r-cran-boot \
-    r-cran-class \
-    r-cran-cluster \
-    r-cran-codetools \
-    r-cran-dbi \
-    r-cran-dbplyr \
-    r-cran-desctools \
-    r-cran-diagrammer \
-    r-cran-docopt \
-    r-cran-dygraphs \
-    r-cran-feather \
-    r-cran-foreign \
-    r-cran-ggally \
-    r-cran-googleauthr \
-    r-cran-googledrive \
-    r-cran-googlevis \
-    r-cran-hms \
-    r-cran-jagsui \
-    r-cran-rjdbc \
-    r-cran-jsonlite \
-    r-cran-kernsmooth \
-    r-cran-laplacesdemon \
-    r-cran-lattice \
-    r-cran-leaflet \
-    r-cran-littler \
-    r-cran-lme4 \
-    r-cran-lmertest \
-    r-cran-mass \
-    r-cran-matrix \
-    r-cran-mcmc \
-    r-cran-mgcv \
-    r-cran-mleap \
-    r-cran-mongolite \
-    r-cran-neuralnet \
-    r-cran-nimble \
-    r-cran-nlme \
-    r-cran-nnet \
-    r-cran-odbc \
-    r-cran-onnx \
-    r-cran-plotly \
-    r-cran-pmml \
-    r-cran-pool \
-    r-cran-qgraph \
-    r-cran-r2jags \
-    r-cran-rcmdrplugin.rmtcjags \
-    r-cran-recipes \
-    r-cran-redcapapi \
-    r-cran-refmanager \
-    r-cran-repr \
-    r-cran-reprex \
-    r-cran-reticulate \
-    r-cran-rgdal \
-    r-cran-rjags \
-    r-cran-rlang \
-    r-cran-rmariadb \
-    r-cran-rodbc \
-    r-cran-rorcid \
-    r-cran-rpart \
-    r-cran-rpostgis \
-    r-cran-rpostgres \
-    r-cran-rprotobuf \
-    r-cran-rstan \
-    r-cran-rstanarm \
-    r-cran-runjags \
-    r-cran-shinydashboard \
-    r-cran-shinyjs \
-    r-cran-shinystan \
-    r-cran-shinythemes \
-    r-cran-shinywidgets \
-    r-cran-sparklyr \
-    r-cran-spatial \
-    r-cran-survival \
-    r-cran-tensorflow \
-    r-cran-tfdeploy \
-    r-cran-tfestimators \
-    r-cran-tibbletime \
-    r-cran-tidypredict \
-    r-cran-tidyquant \
-    r-cran-tidytext \
-    r-cran-tm \
-    r-cran-xgboost
-
-RUN cat ${WORKSPACE}/Rprofile.site >> /etc/R/Rprofile.site
-
-RUN for f in $(ls  /usr/lib/R/site-library/littler/examples/) ; \
-        do ln -s /usr/lib/R/site-library/littler/examples/$f /usr/local/bin/$f  ; done
-
+# 
 RUN install2.r -s --deps TRUE -n 8  $(cat ${WORKSPACE}/Rpackages | tr '\n' ' ')
 
+RUN mkdir -p /etc/skel/.local/share/R/${R_VERSION}/lib
 
-
-RUN mkdir -p /etc/skel/.local/share/R/${R_VERSION}/lib \
- && mkdir -p /etc/skel/.config/R \
- && cp  ${WORKSPACE}/Renviron.user               /etc/skel/.config/R/Renviron              \
- && cp  ${WORKSPACE}/Rprofile.user               /etc/skel/.config/R/Rprofile              \
- && cat ${WORKSPACE}/s6-userconf.sh           >> /etc/cont-init.d/s6-userconf.sh           \
- && cat ${WORKSPACE}/s6-container-env-vars.sh >> /etc/cont-init.d/s6-container-env-vars.sh 
+RUN mkdir -p /etc/skel/.config/R \
+    && cp  ${WORKSPACE}/.Renviron                   /etc/skel/.config/R/.Renviron           \
+    && cp  ${WORKSPACE}/.Rprofile                   /etc/skel/.config/R/.Rprofile           \
+    && cat ${WORKSPACE}/s6-userconf.sh           >> /etc/cont-init.d/s6-userconf.sh         \
+    && cat ${WORKSPACE}/s6-container-env-vars.sh >> /etc/cont-init.d/s6-container-env-vars.sh 
 
 # install microsoft's dotnet runtime - necessary to connect to oracle using oracle vs code plugin
 RUN apt-get update -y && apt-get install -y \
     apt-transport-https \
     dotnet-sdk-5.0 \
     aspnetcore-runtime-5.0
-

@@ -17,7 +17,7 @@ which {nvm}
 exit_status=$?
 if [ $exit_status -ne 0 ] ; then 
     echo "Install nvm"    
-    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.37.2/install.sh | bash
+    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.38.0/install.sh | bash
 fi
 
 source ${NVM_DIR}/nvm.sh

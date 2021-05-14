@@ -19,3 +19,7 @@ done
 cat $tempfile | sort | uniq | tee -a /etc/profile.d/base-env.sh &>/dev/null
 # cleanup
 rm -f $tempfile
+
+
+cat /tmp/workspace/ide-base/base/Dockerfile | grep -E "^ENV" | sed -E "s/^ENV ([^=]+)/export \1/g" | sort | uniq
+

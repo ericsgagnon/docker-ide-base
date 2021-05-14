@@ -6,14 +6,9 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=UTC
 ENV LANG=en_US.UTF-8
 #ENV LC_ALL=en_US.UTF-8
-ENV PASSWORD=password
 ENV SHELL=/bin/bash
 ENV WORKSPACE=/tmp/workspace/ide-base/base
 ENV CUDA_HOME=/usr/local/cuda
-ENV XDG_CONFIG_HOME='${HOME}/.config'
-ENV XDG_CACHE_HOME='${HOME}/.cache'
-ENV XDG_DATA_HOME='${HOME}/.local/share'
-
 
 # this may not be necessary but may give insight on source files
 COPY . ${WORKSPACE}/
@@ -133,7 +128,7 @@ RUN mkdir -p \
     /etc/skel/.local/share \
     /etc/skel/.config      \
     /etc/skel/.cache       \
-    && echo 'export PATH=$HOME/.local/bin:$PATH'           >> /etc/skel/.bashrc     
+    && echo 'export PATH=${HOME}/.local/bin:${PATH}'           >> /etc/skel/.bashrc     
 
 COPY skel-rsync.sh /etc/profile.d/
 
@@ -146,7 +141,6 @@ COPY s6-nvidia-check.sh         /etc/cont-init.d/
 COPY s6-userconf.sh             /etc/cont-init.d/
 
 
-
 ENV USER_NAME=liveware
 ENV USER_ID=1138
 ENV GROUP_NAME=${USER_NAME}
@@ -157,6 +151,10 @@ ENV PASSWORD=password
 ENV PASSWORD_FILE=''
 ENV UPDATE_PASSWORD=false
 ENV ROOT=true
+ENV XDG_CONFIG_HOME='${HOME}/.config'
+ENV XDG_CACHE_HOME='${HOME}/.cache'
+ENV XDG_DATA_HOME='${HOME}/.local/share'
+
 
 ENTRYPOINT [ "/init" ]
 

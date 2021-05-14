@@ -3,7 +3,7 @@ ARG VERSION=dev
 FROM ericsgagnon/ide-base:${VERSION}-languages as base
 
 # this may not be necessary but may give insight on source files
-ENV WORKSPACE="/tmp/workspace/final"
+ENV WORKSPACE=/tmp/workspace/ide-base/final
 COPY . ${WORKSPACE}/
 
 # final stage is intended to provide a consistent build pattern, even if nothing 

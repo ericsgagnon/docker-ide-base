@@ -38,7 +38,7 @@ if [[ ${STAGE} = 'final' ]] ; then
 fi
 
 echo "test the image by:"
-echo "docker run -d -i -t --name ide ericsgagnon/ide-base:${build_tag}"
+echo "docker run -d -i -t --name ide --gpus all ericsgagnon/ide-base:${build_tag}"
 echo "sleep 10 && docker logs ide "
 echo "docker exec -i -t ide /bin/bash"
 echo "# cleanup"

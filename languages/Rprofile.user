@@ -6,3 +6,22 @@ R Script:  ~/.config/R/.Rprofile (this file)  OR (project directory)/.Rprofile
 If files exist in the project directory, the default ones will not be evaluated.
 ------------------------------------------------------------------------------
 ")
+options(
+    HTTPUserAgent = sprintf(
+        "R/%s R (%s)",
+        getRversion(),
+        paste(
+            getRversion(), 
+            R.version$platform,
+            R.version$arch,
+            R.version$os
+        )
+    )
+)
+options(
+    repos = c(
+        CRAN = "https://packagemanager.rstudio.com/all/__linux__/focal/latest"
+    )
+)
+
+
