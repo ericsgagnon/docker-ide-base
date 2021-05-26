@@ -128,33 +128,28 @@ RUN mkdir -p \
     /etc/skel/.local/share \
     /etc/skel/.config      \
     /etc/skel/.cache       \
-    && echo 'export PATH=${HOME}/.local/bin:${PATH}'           >> /etc/skel/.bashrc     
+    && cat ${WORKSPACE}/bashrc.stub >> /etc/skel/.bashrc
 
-COPY skel-rsync.sh /etc/profile.d/
+# profile ##################################################################
+COPY skel-rsync.sh  /etc/profile.d/
+COPY 0000-env.sh    /etc/profile.d/
+
+RUN echo "# ${WORKSPACE}/Dockerfile's ENV Directives (single line directives only):" >> /etc/profile.d/0000-env.sh \
+    && cat ${WORKSPACE}/Dockerfile | \
+    grep -E "^ENV" | \
+    sed -E "s/^ENV ([^=]+)/export \1/g" | \
+    sort | \
+    uniq >> \
+    /etc/profile.d/0000-env.sh  \
+    && echo "#############################################################" >> /etc/profile.d/0000-env.sh
 
 # s6 process manager ######################################################
 ADD https://github.com/just-containers/s6-overlay/releases/download/v2.2.0.3/s6-overlay-amd64-installer /tmp/
 RUN chmod +x /tmp/s6-overlay-amd64-installer && /tmp/s6-overlay-amd64-installer /
 
-COPY s6-container-env-vars.sh   /etc/cont-init.d/
-COPY s6-nvidia-check.sh         /etc/cont-init.d/
-COPY s6-userconf.sh             /etc/cont-init.d/
 
-
-ENV USER_NAME=liveware
-ENV USER_ID=1138
-ENV GROUP_NAME=${USER_NAME}
-ENV GROUP_ID=${USER_ID}
-ENV GROUP_LIST=''
-ENV USER_HOME=/home/${USER_NAME}
-ENV PASSWORD=password
-ENV PASSWORD_FILE=''
-ENV UPDATE_PASSWORD=false
-ENV ROOT=true
-ENV XDG_CONFIG_HOME='${HOME}/.config'
-ENV XDG_CACHE_HOME='${HOME}/.cache'
-ENV XDG_DATA_HOME='${HOME}/.local/share'
-
+COPY 001-userconf.sh                /etc/cont-init.d/
+COPY s6-nvidia-check.sh             /etc/cont-init.d/
 
 ENTRYPOINT [ "/init" ]
 

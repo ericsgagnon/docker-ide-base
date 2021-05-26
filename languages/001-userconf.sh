@@ -3,6 +3,16 @@
 
 # install rust ##################################################
 su - ${USER_NAME} -c '
+source ${HOME}/.bashrc
+
+export XDG_CONFIG_HOME=${USER_XDG_CONFIG_HOME}
+export XDG_CACHE_HOME=${USER_XDG_CACHE_HOME}
+export XDG_DATA_HOME=${USER_XDG_DATA_HOME}
+
+# rust doesnt like system-wide, just configuring env vars 
+export RUSTUP_HOME=${USER_RUSTUP_HOME}
+export CARGO_HOME=${USER_CARGO_HOME}
+
 which {rustup,cargo,rustc}
 exit_status=$?
 if [ $exit_status -ne 0 ] ; then 
@@ -13,6 +23,23 @@ fi
 
 # install nvm,npm,node ##################################################
 su - ${USER_NAME} -c '
+source ${HOME}/.bashrc
+
+export XDG_CONFIG_HOME=${USER_XDG_CONFIG_HOME}
+export XDG_CACHE_HOME=${USER_XDG_CACHE_HOME}
+export XDG_DATA_HOME=${USER_XDG_DATA_HOME}
+
+
+# nvm/npm
+export NVM_DIR=${USER_NVM_DIR}
+export npm_config_userconfig=${USER_npm_config_userconfig}
+export npm_config_cache=${USER_npm_config_cache}
+export npm_config_init_module=${USER_npm_config_init_module}
+
+# yarn
+export YARN_RC_FILENAME=${USER_YARN_RC_FILENAME}
+export YARN_CACHE_FOLDER=${USER_YARN_CACHE_FOLDER}
+
 which {nvm}
 exit_status=$?
 if [ $exit_status -ne 0 ] ; then 

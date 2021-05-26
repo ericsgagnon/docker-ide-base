@@ -11,10 +11,12 @@ COPY . ${WORKSPACE}/
 
 # ensure local python is preferred over distribution python
 ENV PYTHON_VERSION 3.9.5
-ENV WORKON_HOME='${HOME}/.virtualenvs'
 
 RUN apt-get update && apt-get -y install \
+    binfmtc \
+    binfmt-support \
     build-essential \
+    ca-certificates \
     zlib1g-dev \
     libncurses5-dev \
     libgdbm-dev \
@@ -43,24 +45,21 @@ RUN apt-get update && apt-get -y install \
     && make -j "$(nproc)" \
     && make install \
     && rm -rf /usr/src/python \
-    && ldconfig \
-    && python3 --version
+    && ldconfig
+
 
 # make some useful symlinks that are expected to exist
 RUN cd /usr/local/bin \
-    && ln -s idle3 idle \
-    && ln -s pydoc3 pydoc \
-    && ln -s python3 python \
-    && ln -s python3-config python-config
+    && ln -f -s $(which idle3) idle \
+    && ln -f -s $(which pydoc3) pydoc \
+    && ln -f -s $(which python3) python \
+    && ln -f -s $(which python3-config) python-config
 
 RUN python -m ensurepip \
     && python -m ensurepip --upgrade \
     && python -m pip install -U pip
 
 # go ######################################################
-ENV GOPATH='${XDG_DATA_HOME}/go'
-ENV GOBIN='${HOME}/.local/bin/go'
-ENV PATH=/usr/local/go/bin:${PATH}
 
 COPY --from=golang  /usr/local/go /usr/local/go
 
@@ -71,9 +70,6 @@ RUN mkdir -p \
 
 # rust ####################################################
 
-# rust doesn't like system-wide, just configuring env vars 
-ENV RUSTUP_HOME='${HOME}/.local/share/rustup'
-ENV CARGO_HOME='${HOME}/.local/share/cargo'
 
 RUN    mkdir -p /etc/skel/.local/share/rustup \
     && mkdir -p /etc/skel/.local/share/cargo 
@@ -88,12 +84,6 @@ COPY --from=java      /usr/java  /usr/java
 # javascript/node ################################
 # can't use apt to install node without losing libnode-dev and libnode64, 
 # so copying from node docker image
-ENV NVM_DIR='${HOME}/.local/share/nvm'
-ENV npm_config_userconfig='${HOME}/.config/npm/.npmrc'
-ENV npm_config_cache='${HOME}/.cache/npm'
-ENV npm_config_init_module='${HOME}/.config/npm/npm-init.js'
-ENV YARN_RC_FILENAME='${HOME}/.config/yarn/yarnrc'
-ENV YARN_CACHE_FOLDER='${HOME}/.cache/yarn'
 
 RUN mkdir -p \
     /etc/skel/.local/share/nvm \
@@ -105,7 +95,7 @@ RUN mkdir -p \
 
 # R ###########################################################
 
-ENV R_VERSION=4.0
+#ENV R_VERSION=4.0
 ENV CRAN="https://packagemanager.rstudio.com/all/__linux__/focal/latest"
 
 RUN apt-get update && apt-get install -y \
@@ -168,7 +158,6 @@ RUN apt-get update && apt-get install -y \
     texlive \
     vim.tiny \
     zlib1g-dev
-
 
 RUN    apt update -y -qq \
     && apt-key adv --keyserver keyserver.ubuntu.com --recv-keys E298A3A825C0D65DFD57CBB651716619E084DAB9 \
@@ -265,24 +254,35 @@ RUN    apt update -y -qq \
     r-cran-tidypredict \
     r-cran-tidyquant \
     r-cran-tidytext \
+    r-cran-tidyverse \
     r-cran-tm \
     r-cran-xgboost
 
-RUN cat ${WORKSPACE}/Rprofile.site >> /etc/R/Rprofile.site
+RUN export R_VERSION=$(R --version | grep -E "^R version " | sed -r "s/^R version ([[:digit:]]+\\.[[:digit:]]).*/\\1/g" ) \
+ && echo "export R_VERSION=${R_VERSION}"      >> /etc/profile.d/0000-env.sh \
+ && echo "#env's inserted during image build" >> /etc/R/Renviron.site \
+ && echo "R_VERSION=${R_VERSION}"             >> /etc/R/Renviron.site \
+ && cat ${WORKSPACE}/Renviron.site            >> /etc/R/Renviron.site \
+ && cat ${WORKSPACE}/Rprofile.site            >> /etc/R/Rprofile.site \
+ && mkdir -p /etc/skel/.local/share/R/${R_VERSION}/lib                \
+ && mkdir -p /etc/skel/.config/R                                      \
+ && cat ${WORKSPACE}/bashrc.stub               >> /etc/skel/.bashrc   \
+ && cp  ${WORKSPACE}/Renviron.user               /etc/skel/.config/R/Renviron      \
+ && cp  ${WORKSPACE}/Rprofile.user               /etc/skel/.config/R/Rprofile      \
+ && cat ${WORKSPACE}/001-userconf.sh           >> /etc/cont-init.d/001-userconf.sh         
 
 RUN for f in $(ls  /usr/lib/R/site-library/littler/examples/) ; \
         do ln -s /usr/lib/R/site-library/littler/examples/$f /usr/local/bin/$f  ; done
 
 RUN install2.r -s --deps TRUE -n 8  $(cat ${WORKSPACE}/Rpackages | tr '\n' ' ')
 
-
-
 RUN mkdir -p /etc/skel/.local/share/R/${R_VERSION}/lib \
  && mkdir -p /etc/skel/.config/R \
- && cp  ${WORKSPACE}/Renviron.user               /etc/skel/.config/R/Renviron              \
- && cp  ${WORKSPACE}/Rprofile.user               /etc/skel/.config/R/Rprofile              \
- && cat ${WORKSPACE}/s6-userconf.sh           >> /etc/cont-init.d/s6-userconf.sh           \
- && cat ${WORKSPACE}/s6-container-env-vars.sh >> /etc/cont-init.d/s6-container-env-vars.sh 
+ && cat ${WORKSPACE}/bashrc.stub               >> /etc/skel/.bashrc                 \
+ && cp  ${WORKSPACE}/Renviron.user                /etc/skel/.config/R/Renviron      \
+ && cp  ${WORKSPACE}/Rprofile.user                /etc/skel/.config/R/Rprofile      \
+ && cat ${WORKSPACE}/001-userconf.sh           >> /etc/cont-init.d/001-userconf.sh  \
+ && cat ${WORKSPACE}/0000-env.sh               >> /etc/profile.d/0000-env.sh
 
 # install microsoft's dotnet runtime - necessary to connect to oracle using oracle vs code plugin
 RUN apt-get update -y && apt-get install -y \

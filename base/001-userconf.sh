@@ -1,30 +1,7 @@
-#!/usr/bin/with-contenv bash
+#!/bin/bash
 
-# export USER_NAME=${USER_NAME:-liveware}
-# export USER_ID=${USER_ID:-1138}  
-# export GROUP_NAME=${GROUP_NAME:-USER_NAME}
-# export GROUP_ID=${GROUP_ID:-USER_ID}
-# export GROUP_LIST=${GROUP_LIST:-''}
-# export USER_HOME=/home/${USER_NAME}
-# export PASSWORD=${PASSWORD:-password}
-# export PASSWORD_FILE=${PASSWORD_FILE:-''}
-# export UPDATE_PASSWORD=${UPDATE_PASSWORD:-false}
-# export ROOT=${ROOT:-true} 
-
-## Set defaults for environmental variables in case they are undefined
-USER_NAME=${USER_NAME:=liveware}
-GROUP=${GROUP:=liveware}
-GROUP_LIST=${GROUP_LIST:=''}
-UPDATE_PASSWORD=${UPDATE_PASSWORD:=false}
-PASSWORD_FILE=${PASSWORD_FILE:=''}
-if [[ -n ${PASSWORD_FILE} ]] ; then 
-    PASSWORD=$(cat ${PASSWORD_FILE} | tr -d '[:space:]' )
-fi
-PASSWORD=${PASSWORD:=password}
-USER_HOME=${USER_HOME:=/home/${USER_NAME}}
-USER_ID=${USER_ID:=1138}
-GROUP_ID=${GROUP_ID:=1138}
-ROOT=${ROOT:=true}
+# This script relies on environment variables from /etc/profile.d/0000-env.sh
+source /etc/profile.d/0000-env.sh
 
 # create group #######################################################
 getent group ${GROUP_NAME}
@@ -44,8 +21,6 @@ fi
 
 
 # create user ########################################################
-echo ${GROUP_LIST}
-
 getent passwd ${USER_NAME} &> /dev/null
 if [ $? -ne 0 ] ; then
     echo "Creating User: ${USER_NAME}"
@@ -63,12 +38,6 @@ else
 fi
 
 # add supplementary groups
-# if [[ ${ROOT} ]] & [[ -n ${GROUP_LIST} ]]; then
-#     GROUP_LIST="${GROUP_LIST},root,sudo"
-# elif [[ ${ROOT} ]] & [[ -z ${GROUP_LIST} ]]; then 
-#     GROUP_LIST="root,sudo"
-# fi
-
 if [[ ${ROOT} ]] ; then
     GROUP_LIST="${GROUP_LIST},root,sudo"
 fi
@@ -83,8 +52,6 @@ fi
 
 # update password
 if [ ${UPDATE_PASSWORD} ] ; then
-    #usermod -p "\"${PASSWORD}\"" ${USER_NAME}
-    #echo -e "${PASSWORD}\n${PASSWORD}" | passwd  ${USER_NAME}
     echo "${USER_NAME}:${PASSWORD}" | chpasswd
 fi
 
