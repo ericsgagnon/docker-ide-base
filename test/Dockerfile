@@ -56,7 +56,7 @@ COPY skel-rsync.sh  /etc/profile.d/
 #     && echo "#############################################################" >> /etc/profile.d/0000-env.sh
 
 # s6 process manager ######################################################
-ADD https://github.com/just-containers/s6-overlay/releases/download/v2.2.0.3/s6-overlay-amd64-installer /tmp/
+ADD https://github.com/just-containers/s6-overlay/releases/download/v2.2.0.3/s6-ove rlay-amd64-installer /tmp/
 RUN chmod +x /tmp/s6-overlay-amd64-installer && /tmp/s6-overlay-amd64-installer /
 
 

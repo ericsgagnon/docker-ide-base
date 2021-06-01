@@ -123,36 +123,24 @@ ENV NSS_WRAPPER_PASSWD=/etc/passwd
 ENV NSS_WRAPPER_GROUP=/etc/group
 
 # user home directories ####################################################
+ENV ENV_FILE=/etc/profile.d/0000-env.sh
 RUN mkdir -p \
     /etc/skel/.local/bin   \
     /etc/skel/.local/share \
     /etc/skel/.config      \
     /etc/skel/.cache       \
-    && cat ${WORKSPACE}/bashrc.stub >> /etc/skel/.bashrc
+    && echo "source ${ENV_FILE}"    >> /etc/skel/.bashrc
 
 # profile ##################################################################
 COPY skel-rsync.sh  /etc/profile.d/
-COPY 0000-env.sh    /etc/profile.d/
-
-
-# RUN echo "# ${WORKSPACE}/Dockerfile's ENV Directives (single line directives only):" >> /etc/profile.d/0000-env.sh \
-#     && cat ${WORKSPACE}/Dockerfile | \
-#     grep -E "^ENV" | \
-#     sed -E "s/^ENV ([^=]+)/export \1/g" | \
-#     sort | \
-#     uniq | \
-#     envsubst >> \
-#     /etc/profile.d/0000-env.sh  \
-#     && echo "#############################################################" >> /etc/profile.d/0000-env.sh
 
 # s6 process manager ######################################################
 ADD https://github.com/just-containers/s6-overlay/releases/download/v2.2.0.3/s6-overlay-amd64-installer /tmp/
 RUN chmod +x /tmp/s6-overlay-amd64-installer && /tmp/s6-overlay-amd64-installer /
 
-COPY 001-userconf.sh                /etc/cont-init.d/
-COPY s6-nvidia-check.sh             /etc/cont-init.d/
-
-RUN /bin/bash ${WORKSPACE}/env-propagator.sh
+COPY 000-env.sh               /etc/cont-init.d/
+COPY 001-userconf.sh          /etc/cont-init.d/
+COPY s6-nvidia-check.sh       /etc/cont-init.d/
 
 ENTRYPOINT [ "/init" ]
 

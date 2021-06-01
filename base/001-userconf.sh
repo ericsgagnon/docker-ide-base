@@ -3,6 +3,24 @@
 # This script relies on environment variables from /etc/profile.d/0000-env.sh
 source /etc/profile.d/0000-env.sh
 
+######################################################################
+export USER_NAME=${USER_NAME:=liveware}
+export USER_ID=${USER_ID:=1138}
+export GROUP_NAME=${GROUP_NAME:=${USER_NAME}}
+export GROUP_ID=${GROUP_ID:=${USER_ID}}
+export GROUP_LIST=${GROUP_LIST:=''}
+export USER_HOME=${USER_HOME:=/home/${USER_NAME}}
+export PASSWORD_FILE=${PASSWORD_FILE:=''}
+PASSWORD=${PASSWORD:=password}
+if [[ -n ${PASSWORD_FILE} ]] ; then 
+    #PASSWORD=$(cat ${PASSWORD_FILE} | tr -d '[:space:]' )
+    PASSWORD=$(head -n 1 ${PASSWORD_FILE} | tr -d '[:space:]' )
+fi
+export PASSWORD
+export UPDATE_PASSWORD=${UPDATE_PASSWORD:=false}
+export ROOT=${ROOT:=true}
+######################################################################
+
 # create group #######################################################
 getent group ${GROUP_NAME}
 if [ $? -ne 0 ] ; then
@@ -18,7 +36,6 @@ if [ ${group_id} -ne ${GROUP_ID} ] ; then
     echo "Correct group ${GROUP_NAME}'s id from ${group_id} to ${GROUP_ID}"
     groupmod -g ${GROUP_ID} ${GROUP_NAME}
 fi
-
 
 # create user ########################################################
 getent passwd ${USER_NAME} &> /dev/null
@@ -61,4 +78,7 @@ if [ ${user_id} -ne ${USER_ID} ] ; then
     echo "Correct user ${USER_NAME}'s id from ${user_id} to ${USER_ID}"
     usermod -u ${USER_ID} ${USER_NAME}
 fi
+
+##################################################################################################
+
 

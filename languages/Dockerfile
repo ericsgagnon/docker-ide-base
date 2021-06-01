@@ -50,8 +50,8 @@ RUN apt-get update && apt-get -y install \
 
 # make some useful symlinks that are expected to exist
 RUN cd /usr/local/bin \
-    && ln -f -s $(which idle3) idle \
-    && ln -f -s $(which pydoc3) pydoc \
+    && ln -f -s $(which idle3) idle     \
+    && ln -f -s $(which pydoc3) pydoc   \
     && ln -f -s $(which python3) python \
     && ln -f -s $(which python3-config) python-config
 
@@ -66,10 +66,8 @@ COPY --from=golang  /usr/local/go /usr/local/go
 RUN mkdir -p \
     /etc/skel/.local/share/go \
     /etc/skel/.local/bin/go   
-#    && echo "export GOPATH=${GOPATH}"  >> /etc/skel/.bashrc \
 
 # rust ####################################################
-
 
 RUN    mkdir -p /etc/skel/.local/share/rustup \
     && mkdir -p /etc/skel/.local/share/cargo 
@@ -259,16 +257,14 @@ RUN    apt update -y -qq \
     r-cran-xgboost
 
 RUN export R_VERSION=$(R --version | grep -E "^R version " | sed -r "s/^R version ([[:digit:]]+\\.[[:digit:]]).*/\\1/g" ) \
- && echo "export R_VERSION=${R_VERSION}"      >> /etc/profile.d/0000-env.sh \
  && echo "#env's inserted during image build" >> /etc/R/Renviron.site \
  && echo "R_VERSION=${R_VERSION}"             >> /etc/R/Renviron.site \
  && cat ${WORKSPACE}/Renviron.site            >> /etc/R/Renviron.site \
  && cat ${WORKSPACE}/Rprofile.site            >> /etc/R/Rprofile.site \
  && mkdir -p /etc/skel/.local/share/R/${R_VERSION}/lib                \
  && mkdir -p /etc/skel/.config/R                                      \
- && cat ${WORKSPACE}/bashrc.stub               >> /etc/skel/.bashrc   \
- && cp  ${WORKSPACE}/Renviron.user               /etc/skel/.config/R/Renviron      \
- && cp  ${WORKSPACE}/Rprofile.user               /etc/skel/.config/R/Rprofile      \
+ && cp  ${WORKSPACE}/Renviron.user                /etc/skel/.config/R/Renviron      \
+ && cp  ${WORKSPACE}/Rprofile.user                /etc/skel/.config/R/Rprofile      \
  && cat ${WORKSPACE}/001-userconf.sh           >> /etc/cont-init.d/001-userconf.sh         
 
 RUN for f in $(ls  /usr/lib/R/site-library/littler/examples/) ; \
@@ -278,11 +274,10 @@ RUN install2.r -s --deps TRUE -n 8  $(cat ${WORKSPACE}/Rpackages | tr '\n' ' ')
 
 RUN mkdir -p /etc/skel/.local/share/R/${R_VERSION}/lib \
  && mkdir -p /etc/skel/.config/R \
- && cat ${WORKSPACE}/bashrc.stub               >> /etc/skel/.bashrc                 \
  && cp  ${WORKSPACE}/Renviron.user                /etc/skel/.config/R/Renviron      \
  && cp  ${WORKSPACE}/Rprofile.user                /etc/skel/.config/R/Rprofile      \
  && cat ${WORKSPACE}/001-userconf.sh           >> /etc/cont-init.d/001-userconf.sh  \
- && cat ${WORKSPACE}/0000-env.sh               >> /etc/profile.d/0000-env.sh
+ && cat ${WORKSPACE}/000-env.sh                >> /etc/cont-init.d/000-env.sh
 
 # install microsoft's dotnet runtime - necessary to connect to oracle using oracle vs code plugin
 RUN apt-get update -y && apt-get install -y \
