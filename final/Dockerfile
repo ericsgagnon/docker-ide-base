@@ -31,6 +31,14 @@ RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
     && apt-get update && apt-get install -y \
     docker-ce-cli
 
+# rclone ###################################################
+RUN curl https://rclone.org/install.sh | bash
+
+# minio-mc #################################################
+RUN wget -O /usr/bin/mc \
+    https://dl.min.io/client/mc/release/linux-amd64/mc \
+    && chmod +x /usr/bin/mc
+
 # github cli ###################################################
 # https://github.com/cli/cli/blob/trunk/docs/install_linux.md
 RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-key C99B11DEB97541F0 \
