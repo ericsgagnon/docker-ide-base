@@ -280,8 +280,17 @@ RUN mkdir -p /etc/skel/.local/share/R/${R_VERSION}/lib \
  && cat ${WORKSPACE}/000-env.sh                >> /etc/cont-init.d/000-env.sh
 
 # install microsoft's dotnet runtime - necessary to connect to oracle using oracle vs code plugin
-RUN apt-get update -y && apt-get install -y \
-    apt-transport-https \
+# RUN apt-get update -y && apt-get install -y \
+#     apt-transport-https \
+#     dotnet-sdk-5.0 \
+#     aspnetcore-runtime-5.0
+
+RUN wget https://packages.microsoft.com/config/ubuntu/20.04/packages-microsoft-prod.deb -O packages-microsoft-prod.deb \
+    && dpkg -i packages-microsoft-prod.deb \
+    && apt-get update \
+    && apt-get install -y apt-transport-https \
+    && apt-get update \
+    && apt-get install -y \
     dotnet-sdk-5.0 \
     aspnetcore-runtime-5.0
 

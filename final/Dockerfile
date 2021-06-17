@@ -23,13 +23,28 @@ RUN apt-get update && apt-get install -y \
     libgvc6 \
     libgvpr2 \
     liblab-gamut1 \
-    libpathplan4    
+    libpathplan4  \
+    inotify-tools \
+    libinotifytools0 \
+    libinotifytools0-dev
 
 # docker cli ##############################################
 RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add - \
     && add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable" \
     && apt-get update && apt-get install -y \
     docker-ce-cli
+
+# watchman #################################################
+RUN cd /tmp \
+    && wget https://github.com/facebook/watchman/releases/download/v2021.05.24.00/watchman-v2021.05.24.00-linux.zip \
+    && unzip watchman-v2021.05.24.00-linux.zip \
+    && chmod -R 755 watchman-v2021.05.24.00-linux/bin \
+    && cp watchman-v2021.05.24.00-linux/bin/* /usr/local/bin/ \
+    && cp watchman-v2021.05.24.00-linux/lib/* /usr/local/lib/ \
+    && rm -rf /tmp/watchman-v2021.05.24.00-linux \
+    && rm /tmp/watchman-v2021.05.24.00-linux.zip \    
+    && mkdir -p /usr/local/var/run/watchman \
+    && chmod -R 2777 /usr/local/var/run/watchman
 
 # rclone ###################################################
 RUN curl https://rclone.org/install.sh | bash
