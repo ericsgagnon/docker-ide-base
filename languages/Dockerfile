@@ -164,12 +164,19 @@ RUN    apt update -y -qq \
     && apt-get install -y \
     r-base \
     r-base-dev \
+    && add-apt-repository -y ppa:ubuntugis/ppa \
+    && apt-get update \
     && add-apt-repository -y ppa:c2d4u.team/c2d4u4.0+ \
     && apt-get update \
     && apt-get install -y \
     jags \
     python3-rpy2 \
     littler \
+    libgdal-grass \
+    libgdal-dev \
+    gdal-bin \
+    gdal-data \
+    python3-gdal \
     r-cran-bayesmix \
     r-cran-bigrquery \
     r-cran-biocmanager \
@@ -263,9 +270,9 @@ RUN export R_VERSION=$(R --version | grep -E "^R version " | sed -r "s/^R versio
  && cat ${WORKSPACE}/Rprofile.site            >> /etc/R/Rprofile.site \
  && mkdir -p /etc/skel/.local/share/R/${R_VERSION}/lib                \
  && mkdir -p /etc/skel/.config/R                                      \
- && cp  ${WORKSPACE}/Renviron.user                /etc/skel/.config/R/Renviron      \
- && cp  ${WORKSPACE}/Rprofile.user                /etc/skel/.config/R/Rprofile      \
- && cat ${WORKSPACE}/001-userconf.sh           >> /etc/cont-init.d/001-userconf.sh         
+ && cp  ${WORKSPACE}/Renviron.user                          /etc/skel/.config/R/Renviron      \
+ && cp  ${WORKSPACE}/Rprofile.user                          /etc/skel/.config/R/Rprofile      \
+ && cat ${WORKSPACE}/001-userconf.sh                     >> /etc/cont-init.d/001-userconf.sh  
 
 RUN for f in $(ls  /usr/lib/R/site-library/littler/examples/) ; \
         do ln -s /usr/lib/R/site-library/littler/examples/$f /usr/local/bin/$f  ; done
@@ -279,18 +286,12 @@ RUN mkdir -p /etc/skel/.local/share/R/${R_VERSION}/lib \
  && cat ${WORKSPACE}/001-userconf.sh           >> /etc/cont-init.d/001-userconf.sh  \
  && cat ${WORKSPACE}/000-env.sh                >> /etc/cont-init.d/000-env.sh
 
-# install microsoft's dotnet runtime - necessary to connect to oracle using oracle vs code plugin
-# RUN apt-get update -y && apt-get install -y \
-#     apt-transport-https \
-#     dotnet-sdk-5.0 \
-#     aspnetcore-runtime-5.0
-
-RUN wget https://packages.microsoft.com/config/ubuntu/20.04/packages-microsoft-prod.deb -O packages-microsoft-prod.deb \
-    && dpkg -i packages-microsoft-prod.deb \
-    && apt-get update \
+RUN apt-get update \
     && apt-get install -y apt-transport-https \
     && apt-get update \
     && apt-get install -y \
     dotnet-sdk-5.0 \
     aspnetcore-runtime-5.0
 
+# let's make sure no nvidia drivers made it through:
+RUN apt-get remove -y libxnvctrl0 cuda-compat-11-3

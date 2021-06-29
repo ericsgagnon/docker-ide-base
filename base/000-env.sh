@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # this script uses s6's env directory to populate env vars
-s6_env_file=/run/s6/container_environment/
-env_file=$(cat ${s6_env_file}/ENV_FILE)
+s6_env_dir=/run/s6/container_environment/
+env_file=$(cat ${s6_env_dir}/ENV_FILE)
 
 # if env file doesn't exist, create it
 if [ ! -f ${env_file} ]; then

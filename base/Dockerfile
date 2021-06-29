@@ -1,5 +1,5 @@
 
-FROM ericsgagnon/buildpack-deps-cuda:cuda11.2-ubuntu20.04 as base
+FROM ericsgagnon/buildpack-deps-cuda:cuda11-ubuntu20.04 as base
 
 # environment variables
 ENV DEBIAN_FRONTEND=noninteractive
