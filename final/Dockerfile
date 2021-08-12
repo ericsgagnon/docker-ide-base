@@ -99,5 +99,3 @@ RUN VERSION=$(curl --silent "https://api.github.com/repos/tektoncd/cli/releases/
 RUN curl -L https://sourcegraph.com/.api/src-cli/src_linux_amd64 -o /usr/local/bin/src \
     && chmod +x /usr/local/bin/src
 
-
-RUN echo "" > /etc/cont-init.d/002-install-tensorflow-cuda-libs.sh       

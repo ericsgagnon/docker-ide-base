@@ -3,16 +3,19 @@ ARG VERSION=dev
 
 FROM golang:latest         as golang
 FROM openjdk:latest        as java
+FROM python:latest as python 
+RUN echo ${PYTHON_VERSION} > /tmp/PYTHON_VERSION
+
 FROM ericsgagnon/ide-base:${VERSION}-databases as base
 
 # this may not be necessary but may give insight on source files
 ENV WORKSPACE=/tmp/workspace/ide-base/languages
 COPY . ${WORKSPACE}/
+COPY --from=python /tmp/PYTHON_VERSION ${WORKSPACE}/PYTHON_VERSION
 
-# ensure local python is preferred over distribution python
-ENV PYTHON_VERSION 3.9.5
-
-RUN apt-get update && apt-get -y install \
+# build latest python from source
+RUN export PYTHON_VERSION=$(cat ${WORKSPACE}/PYTHON_VERSION) \
+    && apt-get update && apt-get -y install \
     binfmtc \
     binfmt-support \
     build-essential \
@@ -47,6 +50,7 @@ RUN apt-get update && apt-get -y install \
     && rm -rf /usr/src/python \
     && ldconfig
 
+ENV PATH=/usr/local/bin:${PATH}
 
 # make some useful symlinks that are expected to exist
 RUN cd /usr/local/bin \
@@ -57,7 +61,8 @@ RUN cd /usr/local/bin \
 
 RUN python -m ensurepip \
     && python -m ensurepip --upgrade \
-    && python -m pip install -U pip
+    && python -m pip install -U pip \
+    && ln -f -s $(which pip3) /usr/local/bin/pip
 
 # go ######################################################
 
@@ -92,8 +97,6 @@ RUN mkdir -p \
     /etc/skel/.local/share/yarn
 
 # R ###########################################################
-
-#ENV R_VERSION=4.0
 ENV CRAN="https://packagemanager.rstudio.com/all/__linux__/focal/latest"
 
 RUN apt-get update && apt-get install -y \
