@@ -105,7 +105,7 @@ RUN apt-get update \
     iozone3 \
     && rm -rf /var/lib/apt/lists/*
 
-RUN locale-gen $LANG && dpkg-reconfigure locales
+RUN locale-gen ${LANG} && dpkg-reconfigure locales
 
 RUN apt update -y && apt upgrade -y && \
     apt install -y --no-install-recommends \
@@ -143,6 +143,13 @@ COPY 001-userconf.sh          /etc/cont-init.d/
 COPY s6-nvidia-check.sh       /etc/cont-init.d/
 
 ENTRYPOINT [ "/init" ]
+
+# disable core dumps 
+RUN echo    "*    hard    core    0"           >> /etc/security/limits.d/disable-core-dumps.conf \
+    && echo "fs.suid_dumpable=0"               >> /etc/sysctl.d/disable-core-dumps.conf \
+    && echo "vm.oom_dump_tasks=0"              >> /etc/sysctl.d/disable-core-dumps.conf \
+    && echo 'kernel.core_pattern=|/bin/false'  >> /etc/sysctl.d/disable-core-dumps.conf \
+    && echo "ulimit -c 0"                      >> /etc/profile.d/disable-core-dumps.sh
 
 # use bash as default cmd
 CMD [ "/bin/bash" ]
