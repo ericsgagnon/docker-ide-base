@@ -73,3 +73,14 @@ RUN mkdir /opt/freetds && cd /opt/freetds \
     && rm /opt/odbcinst.ini \
     && ldconfig
 
+# openssl 1.0.2 ###############################################################################
+# some older db instances uses encryption that's no longer supported openssl 1.1.1+
+RUN mkdir /tmp/openssl && cd /tmp/openssl \
+    && wget -O openssl.tar.gz https://www.openssl.org/source/old/1.0.2/openssl-1.0.2u.tar.gz \
+    && tar xvf openssl.tar.gz \
+    && cd openssl-1.0.2u \
+    && ./config \
+    && make \
+    && make install \
+    && cd / && rm -rf /tmp/openssl 
+
