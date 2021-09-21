@@ -3,9 +3,6 @@ ARG VERSION=dev
 
 FROM ericsgagnon/ide-base:${VERSION}-base as base
 
-# environment variables
-ENV FREETDS_VERSION=1.2.18
-
 # this may not be necessary but may give insight on source files
 ENV WORKSPACE=/tmp/workspace/ide-base/databases
 COPY . ${WORKSPACE}/
@@ -14,16 +11,28 @@ COPY . ${WORKSPACE}/
 RUN apt-get update \
     && apt-get upgrade -y \
     && apt-get install -y --no-install-recommends \
+    gperf \
     unixodbc \
     unixodbc-dev \
     libaio1 \
-    tdsodbc \
     postgresql \
     odbc-postgresql \
     libsqliteodbc \
     mariadb-client
 
 COPY ./odbcinst.ini /opt/odbcinst.ini
+ENV LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/odbc:${LD_LIBRARY_PATH}
+# prevent upgrades to unixodbc that remove some of the lib's in /usr/lib/x86_64-linux-gnu/odbc
+RUN apt-mark hold unixodbc
+
+RUN sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list' \
+    && wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add - \
+    && apt-get update \
+    && apt-get -y install \
+    postgresql  \
+    ora2pg \
+    pgloader \
+    cl-pgloader
 
 # microsoft ###################################################################################
 # ms still demands accepting their license agreement...
@@ -59,28 +68,38 @@ RUN /opt/oracle/instantclient/odbc_update_ini.sh \
     "Oracle ODBC Driver" \
     /etc/odbc.ini
 
-# freetds #####################################################################################
-RUN mkdir /opt/freetds && cd /opt/freetds \
-    && wget -O freetds.tar.gz ftp://ftp.freetds.org/pub/freetds/stable/freetds-${FREETDS_VERSION}.tar.gz \
-    && tar xvf freetds.tar.gz \
-    && rm freetds.tar.gz \
-    && ln -s freetds-${FREETDS_VERSION} freetds \
-    && cd freetds \
-    && ./configure \
-    && make \
-    && make install \
-    && cat /opt/odbcinst.ini >> /etc/odbcinst.ini \
-    && rm /opt/odbcinst.ini \
-    && ldconfig
-
 # openssl 1.0.2 ###############################################################################
 # some older db instances uses encryption that's no longer supported openssl 1.1.1+
+# install in /usr/local/ssl to avoid conflict with distro install in /usr
 RUN mkdir /tmp/openssl && cd /tmp/openssl \
     && wget -O openssl.tar.gz https://www.openssl.org/source/old/1.0.2/openssl-1.0.2u.tar.gz \
     && tar xvf openssl.tar.gz \
     && cd openssl-1.0.2u \
     && ./config \
+    enable-weak-ssl-ciphers \
+    enable-md2 \
+    enable-rc5 \
+    && make depend \
     && make \
     && make install \
-    && cd / && rm -rf /tmp/openssl 
+    && cd / && rm -rf /tmp/openssl
+
+# freetds #####################################################################################
+RUN cd /tmp \
+    && git clone https://github.com/freetds/freetds \
+    && cd freetds \
+    && sh ./autogen.sh \
+    && make \
+    && make install \
+    && sh ./autogen.sh \
+    --with-openssl=/usr/local/ssl/lib \
+    --prefix=/usr/local/freetds-openssl-102 \
+    && make \
+    && make install \
+    && cat ${WORKSPACE}/odbcinst.ini >> /etc/odbcinst.ini \
+    && cd /tmp \
+    && rm -rf freetds \
+    && ldconfig
+
+
 
