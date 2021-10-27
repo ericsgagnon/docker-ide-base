@@ -35,7 +35,13 @@ if [[ ${STAGE} = 'final' ]] ; then
   docker tag ericsgagnon/ide-base:${build_tag} ericsgagnon/ide-base:${TAG_PREFIX}
   echo "docker push ericsgagnon/ide-base:${TAG_PREFIX}"
   docker push ericsgagnon/ide-base:${TAG_PREFIX}
+  export TIME_TAG=$(date -u +%Y%m)
+  echo "docker tag ericsgagnon/ide-base:${build_tag} ericsgagnon/ide-base:${TIME_TAG}"
+  docker tag ericsgagnon/ide-base:${build_tag} ericsgagnon/ide-base:${TIME_TAG}
+  echo "docker push ericsgagnon/ide-base:${TIME_TAG}"
+  docker push ericsgagnon/ide-base:${TIME_TAG}
 fi
+
 
 echo "test the image by:"
 echo "docker run -d -i -t --name ide --gpus all ericsgagnon/ide-base:${build_tag}"

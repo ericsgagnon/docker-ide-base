@@ -3,19 +3,20 @@ ARG VERSION=dev
 
 FROM golang:latest         as golang
 FROM openjdk:latest        as java
-FROM python:latest as python 
-RUN echo ${PYTHON_VERSION} > /tmp/PYTHON_VERSION
+# FROM python:3.9            as python-3-9
+# FROM python:latest as python 
+# RUN echo ${PYTHON_VERSION} > /tmp/PYTHON_VERSION
 
 FROM ericsgagnon/ide-base:${VERSION}-databases as base
 
 # this may not be necessary but may give insight on source files
 ENV WORKSPACE=/tmp/workspace/ide-base/languages
 COPY . ${WORKSPACE}/
-COPY --from=python /tmp/PYTHON_VERSION ${WORKSPACE}/PYTHON_VERSION
+# COPY --from=python /tmp/PYTHON_VERSION ${WORKSPACE}/PYTHON_VERSION
+# python #########################################################
 
-# build latest python from source
-RUN export PYTHON_VERSION=$(cat ${WORKSPACE}/PYTHON_VERSION) \
-    && apt-get update && apt-get -y install \
+# prep
+RUN apt-get update && apt-get -y install \
     binfmtc \
     binfmt-support \
     build-essential \
@@ -29,40 +30,89 @@ RUN export PYTHON_VERSION=$(cat ${WORKSPACE}/PYTHON_VERSION) \
     libffi-dev \
     libsqlite3-dev \
     libbz2-dev \
-    && cd /tmp \
-    && wget -O python.tar.xz "https://www.python.org/ftp/python/${PYTHON_VERSION%%[a-z]*}/Python-${PYTHON_VERSION}.tar.xz" \
-    && mkdir -p /usr/src/python \
-    && tar -xJC /usr/src/python --strip-components=1 -f python.tar.xz \
-    && rm python.tar.xz \
-    && cd /usr/src/python \
-    && gnuArch="$(dpkg-architecture --query DEB_BUILD_GNU_TYPE)" \
-    && ./configure \
-        --build="$gnuArch" \
-        --enable-loadable-sqlite-extensions \
-        --enable-optimizations \
-        --enable-option-checking=fatal \
-        --enable-shared \
-        --with-system-expat \
-        --with-system-ffi \
-        --without-ensurepip \
-    && make -j "$(nproc)" \
-    && make install \
-    && rm -rf /usr/src/python \
-    && ldconfig
+    software-properties-common
 
-ENV PATH=/usr/local/bin:${PATH}
+# python ####################
 
-# make some useful symlinks that are expected to exist
-RUN cd /usr/local/bin \
-    && ln -f -s $(which idle3) idle     \
-    && ln -f -s $(which pydoc3) pydoc   \
-    && ln -f -s $(which python3) python \
-    && ln -f -s $(which python3-config) python-config
+RUN add-apt-repository -y ppa:deadsnakes/ppa \
+    && apt-get update \
+    && apt-get install -y \
+    $(for v in 3.9 3.10; do echo \
+    python$v \
+    python$v-dev \
+    python$v-venv \
+    python$v-distutils \
+    python$v-lib2to3 \
+    idle-python$v \
+    ; done)
 
-RUN python -m ensurepip \
-    && python -m ensurepip --upgrade \
-    && python -m pip install -U pip \
-    && ln -f -s $(which pip3) /usr/local/bin/pip
+# # make some useful symlinks that are expected to exist
+
+RUN for v in 3.9; do \
+    cd /usr/local/bin \
+    && ln -f -s $(which idle-python$v) idle \
+    && ln -f -s $(which pydoc$v) pydoc      \
+    && ln -f -s $(which python$v) python    \
+    && ln -f -s $(which python$v-config) python-config \
+    ; done
+
+
+# RUN cd /usr/local/bin \
+#     && ln -f -s $(which idle-python3.9) idle     \
+#     && ln -f -s $(which pydoc3.9) pydoc    \
+#     && ln -f -s $(which python3.9) python \
+#     && ln -f -s $(which python3.9-config) python-config
+# python - latest ###############
+# build latest python from source
+# RUN export PYTHON_VERSION=$(cat ${WORKSPACE}/PYTHON_VERSION) \
+#     && apt-get update && apt-get -y install \
+#     binfmtc \
+#     binfmt-support \
+#     build-essential \
+#     ca-certificates \
+#     zlib1g-dev \
+#     libncurses5-dev \
+#     libgdbm-dev \
+#     libnss3-dev \
+#     libssl-dev \
+#     libreadline-dev \
+#     libffi-dev \
+#     libsqlite3-dev \
+#     libbz2-dev \
+#     && cd /tmp \
+#     && wget -O python.tar.xz "https://www.python.org/ftp/python/${PYTHON_VERSION%%[a-z]*}/Python-${PYTHON_VERSION}.tar.xz" \
+#     && mkdir -p /usr/src/python \
+#     && tar -xJC /usr/src/python --strip-components=1 -f python.tar.xz \
+#     && rm python.tar.xz \
+#     && cd /usr/src/python \
+#     && gnuArch="$(dpkg-architecture --query DEB_BUILD_GNU_TYPE)" \
+#     && ./configure \
+#         --build="$gnuArch" \
+#         --enable-loadable-sqlite-extensions \
+#         --enable-optimizations \
+#         --enable-option-checking=fatal \
+#         --enable-shared \
+#         --with-system-expat \
+#         --with-system-ffi \
+#         --without-ensurepip \
+#     && make -j "$(nproc)" \
+#     && make install \
+#     && rm -rf /usr/src/python \
+#     && ldconfig
+
+# ENV PATH=/usr/local/bin:${PATH}
+
+# # make some useful symlinks that are expected to exist
+# RUN cd /usr/local/bin \
+#     && ln -f -s $(which idle3) idle     \
+#     && ln -f -s $(which pydoc3) pydoc   \
+#     && ln -f -s $(which python3) python \
+#     && ln -f -s $(which python3-config) python-config
+
+# RUN python -m ensurepip \
+#     && python -m ensurepip --upgrade \
+#     && python -m pip install -U pip \
+#     && ln -f -s $(which pip3) /usr/local/bin/pip
 
 # go ######################################################
 
