@@ -99,3 +99,9 @@ RUN VERSION=$(curl --silent "https://api.github.com/repos/tektoncd/cli/releases/
 RUN curl -L https://sourcegraph.com/.api/src-cli/src_linux_amd64 -o /usr/local/bin/src \
     && chmod +x /usr/local/bin/src
 
+# yq ##########################################################
+
+RUN export YQ_VERSION=$(curl https://github.com/mikefarah/yq/releases/latest |  sed -E 's|(.*tag/)([^"]+).*|\2|g') \
+  && wget -O /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64 \
+  && chmod +x /usr/local/bin/yq
+

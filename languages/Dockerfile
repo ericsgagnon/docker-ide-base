@@ -122,6 +122,14 @@ RUN mkdir -p \
     /etc/skel/.local/share/go \
     /etc/skel/.local/bin/go   
 
+# tinygo ##################################################
+
+RUN export TINYGO_VERSION=$(curl https://github.com/tinygo-org/tinygo/releases/latest |  sed -E 's|(.*tag/v?)([^"]+).*|\2|g') \
+  && cd /tmp \
+  && wget -O tinygo.deb https://github.com/tinygo-org/tinygo/releases/download/v${TINYGO_VERSION}/tinygo_${TINYGO_VERSION}_amd64.deb \
+  && dpkg -i tinygo.deb
+
+
 # rust ####################################################
 
 RUN    mkdir -p /etc/skel/.local/share/rustup \
