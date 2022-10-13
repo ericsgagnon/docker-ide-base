@@ -2,6 +2,7 @@
 ARG VERSION=dev
 
 FROM golang:latest         as golang
+FROM tinygo/tinygo:latest  as tinygo
 FROM openjdk:latest        as java
 # FROM python:3.9            as python-3-9
 # FROM python:latest as python 
@@ -48,7 +49,7 @@ RUN add-apt-repository -y ppa:deadsnakes/ppa \
 
 # # make some useful symlinks that are expected to exist
 
-RUN for v in 3.9; do \
+RUN for v in 3.10; do \
     cd /usr/local/bin \
     && ln -f -s $(which idle-python$v) idle \
     && ln -f -s $(which pydoc$v) pydoc      \
@@ -115,24 +116,24 @@ RUN for v in 3.9; do \
 #     && ln -f -s $(which pip3) /usr/local/bin/pip
 
 # go ######################################################
-
 COPY --from=golang  /usr/local/go /usr/local/go
-
 RUN mkdir -p \
     /etc/skel/.local/share/go \
     /etc/skel/.local/bin/go   
+ENV PATH=/usr/local/go/bin:${PATH}
 
 # tinygo ##################################################
-
-RUN export TINYGO_VERSION=$(curl https://github.com/tinygo-org/tinygo/releases/latest |  sed -E 's|(.*tag/v?)([^"]+).*|\2|g') \
-  && cd /tmp \
-  && wget -O tinygo.deb https://github.com/tinygo-org/tinygo/releases/download/v${TINYGO_VERSION}/tinygo_${TINYGO_VERSION}_amd64.deb \
-  && dpkg -i tinygo.deb
-
+COPY --from=tinygo  /usr/local/tinygo  /usr/local/tinygo
+ENV PATH=/usr/local/tinygo/bin:${PATH}
+# RUN export TINYGO_VERSION=${TINYGO_VERSION:-0.25.0} \
+#     && cd /tmp \
+#     && wget -O tinygo.deb https://github.com/tinygo-org/tinygo/releases/download/v${TINYGO_VERSION}/tinygo_${TINYGO_VERSION}_amd64.deb \
+#     && dpkg -i tinygo.deb \
+#     && rm tinygo.deb
 
 # rust ####################################################
 
-RUN    mkdir -p /etc/skel/.local/share/rustup \
+RUN mkdir -p /etc/skel/.local/share/rustup \
     && mkdir -p /etc/skel/.local/share/cargo 
 
 # java ####################################################
@@ -155,7 +156,7 @@ RUN mkdir -p \
     /etc/skel/.local/share/yarn
 
 # R ###########################################################
-ENV CRAN="https://packagemanager.rstudio.com/all/__linux__/focal/latest"
+ENV CRAN="https://packagemanager.rstudio.com/all/__linux__/jammy/latest"
 
 RUN apt-get update && apt-get install -y \
     tcl \
@@ -164,7 +165,6 @@ RUN apt-get update && apt-get install -y \
     tk-table \
     jags \
     bwidget \
-    mongodb \
     pandoc \
     bowtie2 \
     imagej \
@@ -218,14 +218,18 @@ RUN apt-get update && apt-get install -y \
     vim.tiny \
     zlib1g-dev
 
+
+    # && apt-key adv --keyserver keyserver.ubuntu.com --recv-keys E298A3A825C0D65DFD57CBB651716619E084DAB9 \
+    # && add-apt-repository "deb https://cloud.r-project.org/bin/linux/ubuntu $(lsb_release -cs)-cran40/" \
+    # r-cran-mleap \
 RUN    apt update -y -qq \
-    && apt-key adv --keyserver keyserver.ubuntu.com --recv-keys E298A3A825C0D65DFD57CBB651716619E084DAB9 \
-    && add-apt-repository "deb https://cloud.r-project.org/bin/linux/ubuntu $(lsb_release -cs)-cran40/" \
+    && wget -qO- https://cloud.r-project.org/bin/linux/ubuntu/marutter_pubkey.asc | gpg --dearmor -o /usr/share/keyrings/r-project.gpg \
+    && echo "deb [signed-by=/usr/share/keyrings/r-project.gpg] https://cloud.r-project.org/bin/linux/ubuntu jammy-cran40/" | tee -a /etc/apt/sources.list.d/r-project.list \
     && apt-get update \
     && apt-get install -y \
     r-base \
     r-base-dev \
-    && add-apt-repository -y ppa:ubuntugis/ppa \
+    && add-apt-repository -y ppa:ubuntugis/ubuntugis-unstable \
     && apt-get update \
     && add-apt-repository -y ppa:c2d4u.team/c2d4u4.0+ \
     && apt-get update \
@@ -272,7 +276,6 @@ RUN    apt update -y -qq \
     r-cran-matrix \
     r-cran-mcmc \
     r-cran-mgcv \
-    r-cran-mleap \
     r-cran-mongolite \
     r-cran-neuralnet \
     r-cran-nimble \
@@ -351,8 +354,9 @@ RUN apt-get update \
     && apt-get install -y apt-transport-https \
     && apt-get update \
     && apt-get install -y \
-    dotnet-sdk-5.0 \
-    aspnetcore-runtime-5.0
+    dotnet-sdk-6.0 \
+    aspnetcore-runtime-6.0
 
 # let's make sure no nvidia drivers made it through:
-RUN apt-get remove -y libxnvctrl0 cuda-compat-11-3
+# RUN apt-get remove -y libxnvctrl0 cuda-compat-11-3
+# RUN apt autoremove

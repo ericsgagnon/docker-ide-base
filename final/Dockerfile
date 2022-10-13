@@ -1,13 +1,12 @@
 ARG VERSION=dev
 
+# docker build --pull --no-cache=true -t trash  -f Dockerfile . 
+
 FROM ericsgagnon/ide-base:${VERSION}-languages as base
 
 # this may not be necessary but may give insight on source files
 ENV WORKSPACE=/tmp/workspace/ide-base/final
 COPY . ${WORKSPACE}/
-
-# final stage is intended to provide a consistent build pattern, even if nothing 
-# significant is done here. 
 
 # user utilities 
 RUN apt-get update && apt-get install -y \
@@ -28,23 +27,37 @@ RUN apt-get update && apt-get install -y \
     libinotifytools0 \
     libinotifytools0-dev
 
-# docker cli ##############################################
-RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add - \
-    && add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable" \
-    && apt-get update && apt-get install -y \
-    docker-ce-cli
+
+COPY --from=docker           /usr/local/bin/docker      /usr/local/bin/docker
+COPY --from=argoproj/argocli /bin/argo                  /usr/local/bin/argo
+COPY --from=argoproj/argocd  /usr/local/bin/argocd      /usr/local/bin/argocd
+
+# bazel ###################################################
+RUN wget -O /usr/local/bin/bazel https://github.com/bazelbuild/bazelisk/releases/download/v1.14.0/bazelisk-linux-amd64 \
+    && chmod +x /usr/local/bin/bazel
+
+# github cli ###################################################
+RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
+    && chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
+    && apt update \
+    && apt install gh -y
 
 # watchman #################################################
 RUN cd /tmp \
-    && wget https://github.com/facebook/watchman/releases/download/v2021.05.24.00/watchman-v2021.05.24.00-linux.zip \
-    && unzip watchman-v2021.05.24.00-linux.zip \
-    && chmod -R 755 watchman-v2021.05.24.00-linux/bin \
-    && cp watchman-v2021.05.24.00-linux/bin/* /usr/local/bin/ \
-    && cp watchman-v2021.05.24.00-linux/lib/* /usr/local/lib/ \
-    && rm -rf /tmp/watchman-v2021.05.24.00-linux \
-    && rm /tmp/watchman-v2021.05.24.00-linux.zip \    
+    && wget -O watchman.zip https://github.com/facebook/watchman/releases/download/v2022.10.10.00/watchman-v2022.10.10.00-linux.zip \
+    && unzip watchman.zip \
+    && mv watchman-* watchman \
+    && chmod -R 755 watchman/bin \
+    && cp watchman/bin/* /usr/local/bin/ \
+    && cp watchman/lib/* /usr/local/lib/ \
+    && rm -rf /tmp/watchman \
+    && rm /tmp/watchman.zip \    
     && mkdir -p /usr/local/var/run/watchman \
-    && chmod -R 2777 /usr/local/var/run/watchman
+    && chmod -R 2777 /usr/local/var/run/watchman \
+    && wget -O libssl1.1.deb http://archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2.16_amd64.deb \
+    && dpkg -i libssl1.1.deb \
+    && rm libssl1.1.deb
 
 # rclone ###################################################
 RUN curl https://rclone.org/install.sh | bash
@@ -54,54 +67,28 @@ RUN wget -O /usr/bin/mc \
     https://dl.min.io/client/mc/release/linux-amd64/mc \
     && chmod +x /usr/bin/mc
 
-# github cli ###################################################
-# https://github.com/cli/cli/blob/trunk/docs/install_linux.md
-RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-key C99B11DEB97541F0 \
-    && apt-add-repository https://cli.github.com/packages \
-    && apt-get update \
-    && apt-get install -y gh
-
 # helm ####################################################
 RUN curl -fsSL https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash -
 
-# kubectl & kubeadm #######################################
-# install latest stable release
-RUN cd /tmp \
-    && curl -L --remote-name-all "https://storage.googleapis.com/kubernetes-release/release/$(curl -sSL https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/{kubeadm,kubectl}" \
-    && install -m 0755 kubeadm /usr/local/bin \
-    && install -m 0755 kubectl /usr/local/bin \
-    && rm ./kubeadm  ./kubectl
-
-# argo workflows ##############################################
-RUN cd /tmp \
-    && VERSION=$(curl --silent "https://api.github.com/repos/argoproj/argo-workflows/releases/latest" | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/') \
-    && curl -sSL -o argo.gz "https://github.com/argoproj/argo-workflows/releases/download/"$VERSION"/argo-linux-amd64.gz" \
-    && gunzip argo.gz \
-    && mv argo /usr/local/bin/argo \
-    && chmod +x /usr/local/bin/argo
-
-# argocd ###################################################
-RUN VERSION=$(curl --silent "https://api.github.com/repos/argoproj/argo-cd/releases/latest" | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/') \
-    && curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/download/$VERSION/argocd-linux-amd64 \
-    && chmod +x /usr/local/bin/argocd
-
 # tekton #####################################################
 # https://tekton.dev/docs/cli/
-RUN VERSION=$(curl --silent "https://api.github.com/repos/tektoncd/cli/releases/latest" | grep '"tag_name"' | sed -E 's/.*"v?([^"]+)".*/\1/') \
-    && curl -sSL -o tkn.tar.gz "https://github.com/tektoncd/cli/releases/download/v"$VERSION"/tkn_"$VERSION"_Linux_x86_64.tar.gz" \
-    && tar xvzf tkn.tar.gz -C /usr/local/bin tkn \
-    && chmod +x /usr/local/bin/tkn \
-    && rm tkn.tar.gz
+RUN gpg --recv-keys --keyserver keyserver.ubuntu.com 3EFE0E0A2F2F60AA \
+    && gpg --export 3EFE0E0A2F2F60AA | sudo tee /etc/apt/trusted.gpg.d/tektoncd.gpg \
+    && echo "deb http://ppa.launchpad.net/tektoncd/cli/ubuntu jammy main" | tee /etc/apt/sources.list.d/tektoncd-ubuntu-cli.list \
+    && apt-get update && apt-get install -y tektoncd-cli 
 
 # sourcegraph cli #############################################
 # https://github.com/sourcegraph/src-cli
-
 RUN curl -L https://sourcegraph.com/.api/src-cli/src_linux_amd64 -o /usr/local/bin/src \
     && chmod +x /usr/local/bin/src
 
 # yq ##########################################################
+RUN wget -O /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.28.1/yq_linux_amd64 \
+    && chmod +x /usr/local/bin/yq
 
-RUN export YQ_VERSION=$(curl https://github.com/mikefarah/yq/releases/latest |  sed -E 's|(.*tag/)([^"]+).*|\2|g') \
-  && wget -O /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64 \
-  && chmod +x /usr/local/bin/yq
+# kubectl & kubeadm #######################################
+# install latest stable release
+RUN curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg \
+    && echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | tee /etc/apt/sources.list.d/kubernetes.list \
+    && apt-get update && apt-get install -y kubeadm kubectl
 

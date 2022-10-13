@@ -1,5 +1,7 @@
 
-FROM ericsgagnon/buildpack-deps-cuda:cuda11-ubuntu20.04 as base
+# FROM ericsgagnon/buildpack-deps-cuda:cuda11-ubuntu20.04 as base
+# FROM ericsgagnon/buildpack-deps-cuda:ubuntu22.04-cuda11.7 as base
+FROM ericsgagnon/buildpack-deps-cuda:cuda11.7-ubuntu22.04 as base
 
 # environment variables
 ENV DEBIAN_FRONTEND=noninteractive
@@ -117,8 +119,8 @@ RUN ldconfig
 ENV PAGER=less
 
 # nss wrapper lets us mount passwd and group files if necessary
-ENV LD_PRELOAD=/usr/lib/libnss_wrapper.so:${LD_PRELOAD}
-ENV LD_LIBRARY_PATH=/usr/local/lib:/usr/lib:${LD_LIBRARY_PATH}
+ENV LD_PRELOAD=libnss_wrapper.so${LD_PRELOAD:+:${LD_PRELOAD}}
+ENV LD_LIBRARY_PATH=/usr/local/lib:/usr/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
 ENV NSS_WRAPPER_PASSWD=/etc/passwd
 ENV NSS_WRAPPER_GROUP=/etc/group
 
@@ -135,12 +137,20 @@ RUN mkdir -p \
 COPY skel-rsync.sh  /etc/profile.d/
 
 # s6 process manager ######################################################
-ADD https://github.com/just-containers/s6-overlay/releases/download/v2.2.0.3/s6-overlay-amd64-installer /tmp/
-RUN chmod +x /tmp/s6-overlay-amd64-installer && /tmp/s6-overlay-amd64-installer /
+# ADD https://github.com/just-containers/s6-overlay/releases/download/v2.2.0.3/s6-overlay-amd64-installer /tmp/
+# https://github.com/just-containers/s6-overlay/releases/v3.1.2.1/
+# ADD https://github.com/just-containers/s6-overlay/releases/download/v2.2.0.3/s6-overlay-amd64-installer /tmp/
+# RUN chmod +x /tmp/s6-overlay-amd64-installer && /tmp/s6-overlay-amd64-installer /
+
+ADD https://github.com/just-containers/s6-overlay/releases/download/v3.1.2.1/s6-overlay-noarch.tar.xz /tmp
+RUN tar -C / -Jxpf /tmp/s6-overlay-noarch.tar.xz
+ADD https://github.com/just-containers/s6-overlay/releases/download/v3.1.2.1/s6-overlay-x86_64.tar.xz /tmp
+RUN tar -C / -Jxpf /tmp/s6-overlay-x86_64.tar.xz
 
 COPY 000-env.sh               /etc/cont-init.d/
 COPY 001-userconf.sh          /etc/cont-init.d/
 COPY s6-nvidia-check.sh       /etc/cont-init.d/
+RUN chmod +x /etc/cont-init.d/*
 
 ENTRYPOINT [ "/init" ]
 

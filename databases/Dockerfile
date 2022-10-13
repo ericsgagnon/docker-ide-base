@@ -25,29 +25,30 @@ ENV LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/odbc:${LD_LIBRARY_PATH}
 # prevent upgrades to unixodbc that remove some of the lib's in /usr/lib/x86_64-linux-gnu/odbc
 RUN apt-mark hold unixodbc
 
-RUN sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list' \
-    && wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add - \
+RUN curl https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /usr/share/keyrings/pgdg.gpg \
+    && echo "deb [signed-by=/usr/share/keyrings/pgdg.gpg] http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | tee -a /etc/apt/sources.list.d/pgdg.list \
     && apt-get update \
     && apt-get -y install \
     postgresql  \
     ora2pg \
-    pgloader \
-    cl-pgloader
+    pgloader
 
 # microsoft ###################################################################################
 # ms still demands accepting their license agreement...
 ENV ACCEPT_EULA=Y
 ENV PATH=${PATH}:/opt/mssql-tools/bin
 
-RUN curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add - \
-    && curl https://packages.microsoft.com/config/ubuntu/20.04/prod.list | tee /etc/apt/sources.list.d/msprod.list
-
-RUN apt-get update && apt-get install -y mssql-tools
+# TODO: switch from apt-key to /usr/share/keyrings via gpg
+RUN curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /usr/share/keyrings/msprod.gpg \
+    && echo "deb [signed-by=/usr/share/keyrings/msprod.gpg arch=amd64,armhf,arm64] https://packages.microsoft.com/ubuntu/22.04/prod $(lsb_release -cs) main" | tee -a /etc/apt/sources.list.d/msprod.list \
+    && apt-get update \
+    && apt-get install -y \
+    mssql-tools
 
 # oracle ######################################################################################
 ENV OCI_LIB=/opt/oracle/instantclient
-ENV LD_LIBRARY_PATH=/opt/oracle/instantclient:${LD_LIBRARY_PATH}
-ENV PATH=/opt/oracle/instantclient:${PATH}
+ENV LD_LIBRARY_PATH=/opt/oracle/instantclient${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
+ENV PATH=/opt/oracle/instantclient${PATH:+:${PATH}}
 
 COPY ./oci8.pc /usr/lib/pkgconfig/oci8.pc
 
@@ -69,7 +70,7 @@ RUN /opt/oracle/instantclient/odbc_update_ini.sh \
     /etc/odbc.ini
 
 # openssl 1.0.2 ###############################################################################
-# some older db instances uses encryption that's no longer supported openssl 1.1.1+
+# some older db instances use encryption that's no longer supported by openssl 1.1.1+
 # install in /usr/local/ssl to avoid conflict with distro install in /usr
 RUN mkdir /tmp/openssl && cd /tmp/openssl \
     && wget -O openssl.tar.gz https://www.openssl.org/source/old/1.0.2/openssl-1.0.2u.tar.gz \
@@ -100,6 +101,14 @@ RUN cd /tmp \
     && cd /tmp \
     && rm -rf freetds \
     && ldconfig
+
+# mongodb #####################################################################################
+RUN wget -qO -  https://www.mongodb.org/static/pgp/server-6.0.asc | gpg --dearmor -o /usr/share/keyrings/mongodb-org.gpg \
+    && echo "deb [signed-by=/usr/share/keyrings/mongodb-org.gpg arch=amd64,arm64]  https://repo.mongodb.org/apt/ubuntu $(lsb_release -cs)/mongodb-org/6.0 multiverse" | tee -a /etc/apt/sources.list.d/mongodb-org.list \
+    && apt-get update \
+    && apt-get install -y \
+    mongocli \
+    mongodb-database-tools
 
 
 
