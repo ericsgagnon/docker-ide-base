@@ -38,7 +38,7 @@ RUN apt-get update && apt-get -y install \
 RUN add-apt-repository -y ppa:deadsnakes/ppa \
     && apt-get update \
     && apt-get install -y \
-    $(for v in 3.9 3.10; do echo \
+    $(for v in 3.9 3.10 3.11; do echo \
     python$v \
     python$v-dev \
     python$v-venv \

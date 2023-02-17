@@ -119,8 +119,9 @@ RUN ldconfig
 ENV PAGER=less
 
 # nss wrapper lets us mount passwd and group files if necessary
-ENV LD_PRELOAD=libnss_wrapper.so${LD_PRELOAD:+:${LD_PRELOAD}}
-ENV LD_LIBRARY_PATH=/usr/local/lib:/usr/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
+ENV LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libnss_wrapper.so${LD_PRELOAD:+:${LD_PRELOAD}}
+ENV LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:/usr/local/lib:/usr/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
+# /usr/lib/x86_64-linux-gnu/
 ENV NSS_WRAPPER_PASSWD=/etc/passwd
 ENV NSS_WRAPPER_GROUP=/etc/group
 

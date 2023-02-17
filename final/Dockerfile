@@ -55,7 +55,7 @@ RUN cd /tmp \
     && rm /tmp/watchman.zip \    
     && mkdir -p /usr/local/var/run/watchman \
     && chmod -R 2777 /usr/local/var/run/watchman \
-    && wget -O libssl1.1.deb http://archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2.16_amd64.deb \
+    && wget -O libssl1.1.deb http://archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2.17_amd64.deb \
     && dpkg -i libssl1.1.deb \
     && rm libssl1.1.deb
 
