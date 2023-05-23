@@ -22,10 +22,10 @@ echo "# s6 container envs ######################################################
 for s6_env in ${s6_envs}; do    
     if [[ ${s6_env} == "PATH" ]] ; then
         echo "export ${s6_env}=\"$(cat /run/s6/container_environment/${s6_env}):"'${PATH}'"\"" >> ${env_file}
+        #echo $PATH | awk 'BEGIN{ RS=":" }{ print $0 }' | awk '!a[$0]++' | awk '!/^[[:space:]]*$/' | sed ':a;N;$!ba;s/\n/:/g'
+        #echo ${s6_env} | awk 'BEGIN{ RS=":" }{ print $0 }' | awk '!a[$0]++' | awk '!/^[[:space:]]*$/' | sed ':a;N;$!ba;s/\n/:/g'  >> ${env_file}
     else 
         echo "export ${s6_env}=\"$(cat /run/s6/container_environment/${s6_env})\""             >> ${env_file}
     fi
 done
 echo "###############################################################################"         >> ${env_file}
-
-

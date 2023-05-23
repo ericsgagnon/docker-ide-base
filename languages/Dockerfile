@@ -49,7 +49,7 @@ RUN add-apt-repository -y ppa:deadsnakes/ppa \
 
 # # make some useful symlinks that are expected to exist
 
-RUN for v in 3.10; do \
+RUN for v in 3.11; do \
     cd /usr/local/bin \
     && ln -f -s $(which idle-python$v) idle \
     && ln -f -s $(which pydoc$v) pydoc      \

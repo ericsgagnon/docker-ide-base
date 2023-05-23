@@ -33,7 +33,7 @@ COPY --from=argoproj/argocli /bin/argo                  /usr/local/bin/argo
 COPY --from=argoproj/argocd  /usr/local/bin/argocd      /usr/local/bin/argocd
 
 # bazel ###################################################
-RUN wget -O /usr/local/bin/bazel https://github.com/bazelbuild/bazelisk/releases/download/v1.14.0/bazelisk-linux-amd64 \
+RUN wget -O /usr/local/bin/bazel https://github.com/bazelbuild/bazelisk/releases/download/v1.17.0/bazelisk-linux-amd64 \
     && chmod +x /usr/local/bin/bazel
 
 # github cli ###################################################
@@ -45,7 +45,7 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | d
 
 # watchman #################################################
 RUN cd /tmp \
-    && wget -O watchman.zip https://github.com/facebook/watchman/releases/download/v2022.10.10.00/watchman-v2022.10.10.00-linux.zip \
+    && wget -O watchman.zip https://github.com/facebook/watchman/releases/download/v2023.05.22.00/watchman-v2023.05.22.00-linux.zip \
     && unzip watchman.zip \
     && mv watchman-* watchman \
     && chmod -R 755 watchman/bin \
@@ -54,8 +54,11 @@ RUN cd /tmp \
     && rm -rf /tmp/watchman \
     && rm /tmp/watchman.zip \    
     && mkdir -p /usr/local/var/run/watchman \
-    && chmod -R 2777 /usr/local/var/run/watchman \
-    && wget -O libssl1.1.deb http://archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2.17_amd64.deb \
+    && chmod -R 2777 /usr/local/var/run/watchman
+
+# libssl
+RUN cd /tmp \
+    && wget -O libssl1.1.deb http://archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2.18_amd64.deb \
     && dpkg -i libssl1.1.deb \
     && rm libssl1.1.deb
 
@@ -83,12 +86,13 @@ RUN curl -L https://sourcegraph.com/.api/src-cli/src_linux_amd64 -o /usr/local/b
     && chmod +x /usr/local/bin/src
 
 # yq ##########################################################
-RUN wget -O /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.28.1/yq_linux_amd64 \
+RUN wget -O /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.34.1/yq_linux_amd64 \
     && chmod +x /usr/local/bin/yq
 
 # kubectl & kubeadm #######################################
 # install latest stable release
-RUN curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg \
-    && echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | tee /etc/apt/sources.list.d/kubernetes.list \
-    && apt-get update && apt-get install -y kubeadm kubectl
-
+RUN cd /usr/local/bin \
+    && curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" \
+    && curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubeadm" \
+    && chmod +x kubectl \
+    && chmod +x kubeadm

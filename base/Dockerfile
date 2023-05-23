@@ -1,7 +1,8 @@
 
 # FROM ericsgagnon/buildpack-deps-cuda:cuda11-ubuntu20.04 as base
 # FROM ericsgagnon/buildpack-deps-cuda:ubuntu22.04-cuda11.7 as base
-FROM ericsgagnon/buildpack-deps-cuda:cuda11.7-ubuntu22.04 as base
+# FROM ericsgagnon/buildpack-deps-cuda:cuda11.7-ubuntu22.04 as base
+FROM ericsgagnon/buildpack-deps-cuda:cuda12.1-ubuntu22.04 as base
 
 # environment variables
 ENV DEBIAN_FRONTEND=noninteractive
