@@ -103,12 +103,17 @@ RUN cd /tmp \
     && ldconfig
 
 # mongodb #####################################################################################
-RUN wget -qO -  https://www.mongodb.org/static/pgp/server-6.0.asc | gpg --dearmor -o /usr/share/keyrings/mongodb-org.gpg \
-    && echo "deb [signed-by=/usr/share/keyrings/mongodb-org.gpg arch=amd64,arm64]  https://repo.mongodb.org/apt/ubuntu $(lsb_release -cs)/mongodb-org/6.0 multiverse" | tee -a /etc/apt/sources.list.d/mongodb-org.list \
+# RUN wget -qO -  https://www.mongodb.org/static/pgp/server-6.0.asc | gpg --dearmor -o /usr/share/keyrings/mongodb-org.gpg \
+    # && echo "deb [signed-by=/usr/share/keyrings/mongodb-org.gpg arch=amd64,arm64]  https://repo.mongodb.org/apt/ubuntu $(lsb_release -cs)/mongodb-org/6.0 multiverse" | tee -a /etc/apt/sources.list.d/mongodb-org.list \
+RUN wget -qO -  https://pgp.mongodb.com/server-7.0.asc |  gpg --dearmor -o /usr/share/keyrings/mongodb-server-7.0.gpg \
+    && echo "deb [signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg arch=amd64,arm64] https://repo.mongodb.org/apt/ubuntu $(lsb_release -cs)/mongodb-org/7.0 multiverse" | tee -a /etc/apt/sources.list.d/mongodb-org-7.0.list \
     && apt-get update \
     && apt-get install -y \
     mongocli \
     mongodb-database-tools
+
+
+
 
 
 

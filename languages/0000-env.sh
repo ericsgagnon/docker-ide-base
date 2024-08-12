@@ -1,10 +1,6 @@
 
 # languages ###################################################################
 
-echo '
-
-# languages ###################################################################
-
 # R 
 export R_VERSION=$(R --version | grep -E "^R version " | sed -r "s/^R version ([[:digit:]]+\\.[[:digit:]]).*/\\1/g" )
 
@@ -30,8 +26,3 @@ export YARN_CACHE_FOLDER=${XDG_CACHE_HOME}/yarn
 export RUSTUP_HOME=${XDG_DATA_HOME}/rustup
 export CARGO_HOME=${XDG_DATA_HOME}/cargo
 ###############################################################################
-
-' >> ${env_file}
-
-###############################################################################
-

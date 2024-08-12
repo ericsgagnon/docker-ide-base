@@ -91,10 +91,3 @@ fi
 
 '
 
-# homebrew ####################################################
-# not sure if we should be using homebrew, it has an odd /home/linuxbrew install folder requirement 
-# that appears to be baked into their compiled binaries. 
-# su - ${USER_NAME} -c '
-# /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-# echo 'eval "$(${HOME}/.linuxbrew/bin/brew shellenv)"' >> ${HOME}/.profile
-# '

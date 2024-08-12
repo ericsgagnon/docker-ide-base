@@ -38,7 +38,7 @@ RUN apt-get update && apt-get -y install \
 RUN add-apt-repository -y ppa:deadsnakes/ppa \
     && apt-get update \
     && apt-get install -y \
-    $(for v in 3.9 3.10 3.11; do echo \
+    $(for v in 3.9 3.10 3.11 3.12; do echo \
     python$v \
     python$v-dev \
     python$v-venv \
@@ -47,14 +47,19 @@ RUN add-apt-repository -y ppa:deadsnakes/ppa \
     idle-python$v \
     ; done)
 
+RUN for v in 3.9 3.10 3.11 3.12; do \
+    curl -sS https://bootstrap.pypa.io/get-pip.py | python$v \
+    ; done
+
 # # make some useful symlinks that are expected to exist
 
-RUN for v in 3.11; do \
+RUN for v in 3.12; do \
     cd /usr/local/bin \
     && ln -f -s $(which idle-python$v) idle \
     && ln -f -s $(which pydoc$v) pydoc      \
     && ln -f -s $(which python$v) python    \
     && ln -f -s $(which python$v-config) python-config \
+    && ln -f -s $(which pip$v) pip \
     ; done
 
 
@@ -335,8 +340,7 @@ RUN export R_VERSION=$(R --version | grep -E "^R version " | sed -r "s/^R versio
  && mkdir -p /etc/skel/.local/share/R/${R_VERSION}/lib                \
  && mkdir -p /etc/skel/.config/R                                      \
  && cp  ${WORKSPACE}/Renviron.user                          /etc/skel/.config/R/Renviron      \
- && cp  ${WORKSPACE}/Rprofile.user                          /etc/skel/.config/R/Rprofile      \
- && cat ${WORKSPACE}/001-userconf.sh                     >> /etc/cont-init.d/001-userconf.sh  
+ && cp  ${WORKSPACE}/Rprofile.user                          /etc/skel/.config/R/Rprofile
 
 RUN for f in $(ls  /usr/lib/R/site-library/littler/examples/) ; \
         do ln -s /usr/lib/R/site-library/littler/examples/$f /usr/local/bin/$f  ; done
@@ -348,14 +352,16 @@ RUN mkdir -p /etc/skel/.local/share/R/${R_VERSION}/lib \
  && cp  ${WORKSPACE}/Renviron.user                /etc/skel/.config/R/Renviron      \
  && cp  ${WORKSPACE}/Rprofile.user                /etc/skel/.config/R/Rprofile      \
  && cat ${WORKSPACE}/001-userconf.sh           >> /etc/cont-init.d/001-userconf.sh  \
- && cat ${WORKSPACE}/000-env.sh                >> /etc/cont-init.d/000-env.sh
+ && cat ${WORKSPACE}/0000-env.sh               >> /etc/profile.d/0000-env.sh
 
 RUN apt-get update \
     && apt-get install -y apt-transport-https \
     && apt-get update \
     && apt-get install -y \
     dotnet-sdk-6.0 \
-    aspnetcore-runtime-6.0
+    dotnet-sdk-8.0 \
+    aspnetcore-runtime-6.0 \
+    aspnetcore-runtime-8.0
 
 # let's make sure no nvidia drivers made it through:
 # RUN apt-get remove -y libxnvctrl0 cuda-compat-11-3

@@ -117,8 +117,11 @@ RUN apt update -y && apt upgrade -y && \
 
 RUN ldconfig
 
-ENV PAGER=less
+# custom dedupe program to remove any duplicates from files, paths vars, etc. #######
+COPY --chmod=777 dedupe/dedupe         /usr/local/bin/
+# RUN cat ${WORKSPACE}/dedupe/.bashrc >> /etc/skel/.bashrc
 
+ENV PAGER=less
 # nss wrapper lets us mount passwd and group files if necessary
 ENV LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libnss_wrapper.so${LD_PRELOAD:+:${LD_PRELOAD}}
 ENV LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:/usr/local/lib:/usr/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
@@ -127,29 +130,26 @@ ENV NSS_WRAPPER_PASSWD=/etc/passwd
 ENV NSS_WRAPPER_GROUP=/etc/group
 
 # user home directories ####################################################
-ENV ENV_FILE=/etc/profile.d/0000-env.sh
+# ENV ENV_FILE=/etc/profile.d/0000-env.sh
 RUN mkdir -p \
     /etc/skel/.local/bin   \
     /etc/skel/.local/share \
     /etc/skel/.config      \
-    /etc/skel/.cache       \
-    && echo "source ${ENV_FILE}"    >> /etc/skel/.bashrc
+    /etc/skel/.cache       
+    # && echo "source ${ENV_FILE}"    >> /etc/skel/.bashrc
 
 # profile ##################################################################
-COPY skel-rsync.sh  /etc/profile.d/
+COPY skel-rsync.sh            /etc/profile.d/
+COPY 0000-env.sh              /etc/profile.d/
+RUN cat ${WORKSPACE}/etc-bash.bashrc >> /etc/bash.bashrc
 
 # s6 process manager ######################################################
-# ADD https://github.com/just-containers/s6-overlay/releases/download/v2.2.0.3/s6-overlay-amd64-installer /tmp/
-# https://github.com/just-containers/s6-overlay/releases/v3.1.2.1/
-# ADD https://github.com/just-containers/s6-overlay/releases/download/v2.2.0.3/s6-overlay-amd64-installer /tmp/
-# RUN chmod +x /tmp/s6-overlay-amd64-installer && /tmp/s6-overlay-amd64-installer /
-
 ADD https://github.com/just-containers/s6-overlay/releases/download/v3.1.2.1/s6-overlay-noarch.tar.xz /tmp
 RUN tar -C / -Jxpf /tmp/s6-overlay-noarch.tar.xz
 ADD https://github.com/just-containers/s6-overlay/releases/download/v3.1.2.1/s6-overlay-x86_64.tar.xz /tmp
 RUN tar -C / -Jxpf /tmp/s6-overlay-x86_64.tar.xz
 
-COPY 000-env.sh               /etc/cont-init.d/
+# COPY 000-env.sh               /etc/cont-init.d/
 COPY 001-userconf.sh          /etc/cont-init.d/
 COPY s6-nvidia-check.sh       /etc/cont-init.d/
 RUN chmod +x /etc/cont-init.d/*

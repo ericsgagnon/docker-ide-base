@@ -56,11 +56,12 @@ RUN cd /tmp \
     && mkdir -p /usr/local/var/run/watchman \
     && chmod -R 2777 /usr/local/var/run/watchman
 
-# libssl
-RUN cd /tmp \
-    && wget -O libssl1.1.deb http://archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2.18_amd64.deb \
-    && dpkg -i libssl1.1.deb \
-    && rm libssl1.1.deb
+# # libssl
+# RUN cd /tmp \
+#     && wget -O libssl1.1.deb http://archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb \
+#     && dpkg -i libssl1.1.deb \
+#     && rm libssl1.1.deb
+#     # && wget -O libssl1.1.deb http://archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2.18_amd64.deb \
 
 # rclone ###################################################
 RUN curl https://rclone.org/install.sh | bash
@@ -96,3 +97,7 @@ RUN cd /usr/local/bin \
     && curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubeadm" \
     && chmod +x kubectl \
     && chmod +x kubeadm
+
+# startup file attribute check ############################
+
+RUN chmod +x /etc/cont-init.d/001-userconf.sh 
