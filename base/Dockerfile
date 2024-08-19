@@ -118,7 +118,12 @@ RUN apt update -y && apt upgrade -y && \
 RUN ldconfig
 
 # custom dedupe program to remove any duplicates from files, paths vars, etc. #######
-COPY --chmod=777 dedupe/dedupe         /usr/local/bin/
+RUN cd tmp \
+    && git clone https://github.com/exiledavatar/dedupe.git \
+    && cp dedupe/dedupe /usr/local/bin/ \
+    && chmod 777 /usr/local/bin/dedupe \
+    && rm -rf dedupe
+# COPY --chmod=777 dedupe/dedupe         /usr/local/bin/
 # RUN cat ${WORKSPACE}/dedupe/.bashrc >> /etc/skel/.bashrc
 
 ENV PAGER=less

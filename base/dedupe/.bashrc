@@ -1,1 +1,1 @@
-export PATH=$(/usr/local/bin/dedupe ${PATH})
+export PATH=$(/usr/local/bin/dedupe -i : -t i ${PATH})
